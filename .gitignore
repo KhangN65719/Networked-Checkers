@@ -1,0 +1,11 @@
+.idea
+
+HW5Client/.idea/
+HW5Client/.settings/
+HW5Client/.classpath
+HW5Client/.project
+
+HW5Server/.idea/
+HW5Server/.settings/
+HW5Server/.classpath
+HW5Server/.project
