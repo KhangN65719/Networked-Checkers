@@ -1,5 +1,4 @@
 import java.util.HashMap;
-
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -7,183 +6,257 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
+import javafx.scene.text.Font;
 import javafx.stage.Stage;
 
 public class GuiClient extends Application {
 
-	TextField messageField, usernameField;
-	Button sendBtn, signInBtn;
-	HashMap<String, Scene> sceneMap;
-	Client clientConnection;
-	String myUsername = null;
-	Stage primaryStage;
+    TextField messageField, usernameField;
+    Button sendBtn, signInBtn, singlePlayer, language, multiPlayer;
+    VBox mainVBox, playButtonVBox;
+    HBox playButtonHbox;
+    HashMap<String, Scene> sceneMap;
+    Client clientConnection;
+    String myUsername = null;
+    Stage primaryStage;
 
-	ListView<String> chatList;
+    ListView<String> chatList;
 
-	ToggleGroup targetGroup;
-	RadioButton rbAll, rbPrivate, rbGroup;
-	ComboBox<String> userCombo, groupCombo;
-	TextField groupNameField;
+    ToggleGroup targetGroup;
+    RadioButton rbAll, rbPrivate, rbGroup;
 
-	Label errorLabel;
+    ComboBox<String> userCombo = new ComboBox<>();
+    ComboBox<String> groupCombo = new ComboBox<>();
 
-	public static void main(String[] args) {
-		launch(args);
-	}
+    TextField groupNameField;
 
-	@Override
-	public void start(Stage primaryStage) throws Exception {
-		this.primaryStage = primaryStage;
+    Label errorLabel, greeting;
+    ImageView checkersIcon;
 
-		clientConnection = new Client(data -> {
-			if (!(data instanceof Message)) return;
-			Message msg = (Message) data;
-			Platform.runLater(() -> handleIncoming(msg));
-		});
-		clientConnection.start();
+    public static void main(String[] args) {
+        launch(args);
+    }
 
-		chatList = new ListView<>();
-		usernameField = new TextField();
-		usernameField.setPromptText("Enter username");
-		signInBtn = new Button("Sign In");
-		messageField = new TextField();
-		messageField.setPromptText("Type a message...");
-		sendBtn = new Button("Send");
+    @Override
+    public void start(Stage primaryStage) throws Exception {
+        this.primaryStage = primaryStage;
 
-		errorLabel = new Label();
-		errorLabel.setStyle("-fx-text-fill: red;");
-		errorLabel.setVisible(false);
+        clientConnection = new Client(data -> {
+            if (!(data instanceof Message))
+                return;
+            Message msg = (Message) data;
+            Platform.runLater(() -> handleIncoming(msg));
+        });
+        clientConnection.start();
 
-		signInBtn.setOnAction(e -> attemptSignIn());
-		usernameField.setOnAction(e -> attemptSignIn());
-		sendBtn.setOnAction(e -> sendMessage());
-		messageField.setOnAction(e -> sendMessage());
+        chatList = new ListView<>();
+        usernameField = new TextField();
+        usernameField.setPromptText("Enter username");
+        signInBtn = new Button("Sign In");
+        messageField = new TextField();
+        messageField.setPromptText("Type a message...");
+        sendBtn = new Button("Send");
 
-		sceneMap = new HashMap<>();
-		sceneMap.put("SignIn", createLoginGui());
-		sceneMap.put("client", createClientGui());
+        singlePlayer = new Button("Single Player");
+        singlePlayer.getStyleClass().add("btn-red");
 
-		primaryStage.setOnCloseRequest(e -> { Platform.exit(); System.exit(0); });
-		primaryStage.setScene(sceneMap.get("SignIn"));
-		primaryStage.setTitle("Chat - Sign In");
-		primaryStage.show();
-	}
+        language = new Button("Language");
+        language.getStyleClass().add("btn-dark");
 
-	private void handleIncoming(Message msg) {
-		switch (msg.type) {
-			case Message.SIGN_IN_OK:
-				myUsername = msg.sender;
-				primaryStage.setTitle("Chat - " + myUsername);
-				primaryStage.setScene(sceneMap.get("client"));
-				break;
-			case Message.SIGN_IN_FAIL:
-				errorLabel.setText("Username taken. Try another.");
-				errorLabel.setVisible(true);
-				break;
-			case Message.USER_LIST:
-				String prevUser = userCombo.getValue();
-				userCombo.setItems(FXCollections.observableArrayList(msg.userList));
-				if (prevUser != null && msg.userList.contains(prevUser)) userCombo.setValue(prevUser);
-				break;
-			case Message.GROUP_LIST:
-				String prevGroup = groupCombo.getValue();
-				groupCombo.setItems(FXCollections.observableArrayList(msg.groupList));
-				if (prevGroup != null && msg.groupList.contains(prevGroup)) groupCombo.setValue(prevGroup);
-				break;
-			case Message.CHAT_MESSAGE:
-			default:
-				chatList.getItems().add(msg.content != null ? msg.content : msg.toString());
-				chatList.scrollTo(chatList.getItems().size() - 1);
-				break;
-		}
-	}
+        multiPlayer = new Button("Multiplayer");
+        multiPlayer.getStyleClass().add("btn-red");
 
-	private void attemptSignIn() {
-		String name = usernameField.getText().trim();
-		if (name.isEmpty()) {
-			errorLabel.setText("Username cannot be empty.");
-			errorLabel.setVisible(true);
-			return;
-		}
-		errorLabel.setVisible(false);
-		clientConnection.send(Message.signIn(name));
-	}
+        checkersIcon = new ImageView(getClass().getResource("/assets/checkersIcon.png").toExternalForm());
+        checkersIcon.setFitWidth(140);
+        checkersIcon.setFitHeight(140);
+        checkersIcon.setPreserveRatio(true);
 
-	private void sendMessage() {
-		String text = messageField.getText().trim();
-		if (text.isEmpty()) return;
-		messageField.clear();
+        greeting = new Label();
+        greeting.getStyleClass().add("greeting");
 
-		RadioButton selected = (RadioButton) targetGroup.getSelectedToggle();
-		if (selected == rbAll) {
-			clientConnection.send(Message.sendAll(myUsername, text));
-		} else if (selected == rbPrivate) {
-			String target = userCombo.getValue();
-			if (target == null) { chatList.getItems().add("[Error] Select a user first."); return; }
-			clientConnection.send(Message.sendPrivate(myUsername, target, text));
-		} else if (selected == rbGroup) {
-			String gName = groupCombo.getValue();
-			if (gName == null) { chatList.getItems().add("[Error] Select a group first."); return; }
-			clientConnection.send(Message.sendGroup(myUsername, gName, text));
-		}
-	}
+        playButtonHbox = new HBox(20, singlePlayer, language, multiPlayer);
+        playButtonHbox.getStyleClass().add("play-buttons-hbox");
 
-	public Scene createLoginGui() {
-		VBox box = new VBox(10, new Label("Username:"), usernameField, errorLabel, signInBtn);
-		box.setAlignment(Pos.CENTER);
-		box.setPadding(new Insets(40));
-		return new Scene(box, 300, 220);
-	}
+        playButtonVBox = new VBox(playButtonHbox);
+        playButtonVBox.getStyleClass().add("play-panel");
 
-	public Scene createClientGui() {
-		targetGroup = new ToggleGroup();
-		rbAll = new RadioButton("All");
-		rbAll.setToggleGroup(targetGroup);
-		rbAll.setSelected(true);
-		rbPrivate = new RadioButton("User");
-		rbPrivate.setToggleGroup(targetGroup);
-		rbGroup = new RadioButton("Group");
-		rbGroup.setToggleGroup(targetGroup);
+        mainVBox = new VBox(150, greeting, checkersIcon, playButtonVBox);
+        mainVBox.getStyleClass().add("main-root");
 
-		userCombo = new ComboBox<>();
-		userCombo.setPromptText("select user");
-		userCombo.disableProperty().bind(rbPrivate.selectedProperty().not());
+        errorLabel = new Label();
+        errorLabel.getStyleClass().add("error-label");
+        errorLabel.setVisible(false);
 
-		groupCombo = new ComboBox<>();
-		groupCombo.setPromptText("select group");
-		groupCombo.disableProperty().bind(rbGroup.selectedProperty().not());
+        signInBtn.setOnAction(e -> attemptSignIn());
+        usernameField.setOnAction(e -> attemptSignIn());
+        sendBtn.setOnAction(e -> sendMessage());
+        messageField.setOnAction(e -> sendMessage());
 
-		groupNameField = new TextField();
-		groupNameField.setPromptText("New group name");
+        sceneMap = new HashMap<>();
+        sceneMap.put("mainScene", createMainScreenGui());
+        sceneMap.put("signIn", createLoginGui());
+        sceneMap.put("client", createClientGui());
 
-		Button createGroupBtn = new Button("Create");
-		createGroupBtn.setOnAction(e -> {
-			String gName = groupNameField.getText().trim();
-			if (gName.isEmpty()) return;
-			groupNameField.clear();
-			clientConnection.send(Message.createGroup(myUsername, gName));
-		});
+        primaryStage.setOnCloseRequest(e -> {
+            Platform.exit();
+            System.exit(0);
+        });
+        primaryStage.setScene(sceneMap.get("signIn"));
+        primaryStage.setTitle("Checkers");
+        primaryStage.show();
+    }
 
-		Button joinGroupBtn = new Button("Join");
-		joinGroupBtn.setOnAction(e -> {
-			String gName = groupCombo.getValue();
-			if (gName == null) { chatList.getItems().add("[Error] Select a group to join."); return; }
-			clientConnection.send(Message.joinGroup(myUsername, gName));
-		});
+    private void handleIncoming(Message msg) {
+        switch (msg.type) {
+            case Message.SIGN_IN_OK:
+                myUsername = msg.sender;
+                primaryStage.setTitle("Chat - " + myUsername);
+                greeting.setText("Welcome, " + myUsername + "!");
+                primaryStage.setScene(sceneMap.get("mainScene"));
+                break;
+            case Message.SIGN_IN_FAIL:
+                errorLabel.setText("Username taken. Try another.");
+                errorLabel.setVisible(true);
+                break;
+            case Message.USER_LIST:
+                String prevUser = userCombo.getValue();
+                userCombo.setItems(FXCollections.observableArrayList(msg.userList));
+                if (prevUser != null && msg.userList.contains(prevUser))
+                    userCombo.setValue(prevUser);
+                break;
+            case Message.GROUP_LIST:
+                String prevGroup = groupCombo.getValue();
+                groupCombo.setItems(FXCollections.observableArrayList(msg.groupList));
+                if (prevGroup != null && msg.groupList.contains(prevGroup))
+                    groupCombo.setValue(prevGroup);
+                break;
+            case Message.CHAT_MESSAGE:
+            default:
+                chatList.getItems().add(msg.content != null ? msg.content : msg.toString());
+                chatList.scrollTo(chatList.getItems().size() - 1);
+                break;
+        }
+    }
 
-		HBox targetRow = new HBox(8, rbAll, rbPrivate, userCombo, rbGroup, groupCombo);
-		targetRow.setPadding(new Insets(4, 8, 4, 8));
+    private void attemptSignIn() {
+        String name = usernameField.getText().trim();
+        if (name.isEmpty()) {
+            errorLabel.setText("Username cannot be empty.");
+            errorLabel.setVisible(true);
+            return;
+        }
+        errorLabel.setVisible(false);
+        clientConnection.send(Message.signIn(name));
+    }
 
-		HBox groupRow = new HBox(8, groupNameField, createGroupBtn, joinGroupBtn);
-		groupRow.setPadding(new Insets(0, 8, 0, 8));
+    private void sendMessage() {
+        String text = messageField.getText().trim();
+        if (text.isEmpty())
+            return;
+        messageField.clear();
 
-		HBox sendRow = new HBox(8, messageField, sendBtn);
-		sendRow.setPadding(new Insets(0, 8, 8, 8));
-		HBox.setHgrow(messageField, Priority.ALWAYS);
+        RadioButton selected = (RadioButton) targetGroup.getSelectedToggle();
+        if (selected == rbAll) {
+            clientConnection.send(Message.sendAll(myUsername, text));
+        } else if (selected == rbPrivate) {
+            String target = userCombo.getValue();
+            if (target == null) {
+                chatList.getItems().add("[Error] Select a user first.");
+                return;
+            }
+            clientConnection.send(Message.sendPrivate(myUsername, target, text));
+        } else if (selected == rbGroup) {
+            String gName = groupCombo.getValue();
+            if (gName == null) {
+                chatList.getItems().add("[Error] Select a group first.");
+                return;
+            }
+            clientConnection.send(Message.sendGroup(myUsername, gName, text));
+        }
+    }
 
-		VBox root = new VBox(6, chatList, targetRow, groupRow, sendRow);
-		VBox.setVgrow(chatList, Priority.ALWAYS);
-		return new Scene(root, 500, 400);
-	}
+    public Scene createMainScreenGui() {
+        HBox centered = new HBox(playButtonVBox);
+        centered.setAlignment(Pos.CENTER);
+        centered.setPadding(new Insets(100, 0, 80, 0));
+
+        mainVBox.setAlignment(Pos.CENTER);
+        mainVBox.getChildren().setAll(greeting, checkersIcon);
+
+        BorderPane root = new BorderPane();
+        root.getStyleClass().add("main-root");
+        root.setCenter(mainVBox);
+        root.setBottom(centered);
+
+        Scene scene = new Scene(root, 1200, 800);
+        Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Regular.ttf"), 12);
+        Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Bold.ttf"), 12);
+        scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
+        return scene;
+    }
+
+    public Scene createLoginGui() {
+        VBox box = new VBox(10, new Label("Username:"), usernameField, errorLabel, signInBtn);
+        box.getStyleClass().add("login-root");
+        box.setAlignment(Pos.CENTER);
+        box.setPadding(new Insets(40));
+        Scene scene = new Scene(box, 600, 400);
+        scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
+        return scene;
+    }
+
+    public Scene createClientGui() {
+        targetGroup = new ToggleGroup();
+        rbAll = new RadioButton("All");
+        rbAll.setToggleGroup(targetGroup);
+        rbAll.setSelected(true);
+        rbPrivate = new RadioButton("User");
+        rbPrivate.setToggleGroup(targetGroup);
+        rbGroup = new RadioButton("Group");
+        rbGroup.setToggleGroup(targetGroup);
+
+        userCombo.setPromptText("select user");
+        userCombo.disableProperty().bind(rbPrivate.selectedProperty().not());
+
+        groupCombo.setPromptText("select group");
+        groupCombo.disableProperty().bind(rbGroup.selectedProperty().not());
+
+        groupNameField = new TextField();
+        groupNameField.setPromptText("New group name");
+
+        Button createGroupBtn = new Button("Create");
+        createGroupBtn.setOnAction(e -> {
+            String gName = groupNameField.getText().trim();
+            if (gName.isEmpty())
+                return;
+            groupNameField.clear();
+            clientConnection.send(Message.createGroup(myUsername, gName));
+        });
+
+        Button joinGroupBtn = new Button("Join");
+        joinGroupBtn.setOnAction(e -> {
+            String gName = groupCombo.getValue();
+            if (gName == null) {
+                chatList.getItems().add("[Error] Select a group to join.");
+                return;
+            }
+            clientConnection.send(Message.joinGroup(myUsername, gName));
+        });
+
+        HBox targetRow = new HBox(8, rbAll, rbPrivate, userCombo, rbGroup, groupCombo);
+        targetRow.setPadding(new Insets(4, 8, 4, 8));
+
+        HBox groupRow = new HBox(8, groupNameField, createGroupBtn, joinGroupBtn);
+        groupRow.setPadding(new Insets(0, 8, 0, 8));
+
+        HBox sendRow = new HBox(8, messageField, sendBtn);
+        sendRow.setPadding(new Insets(0, 8, 8, 8));
+        HBox.setHgrow(messageField, Priority.ALWAYS);
+
+        VBox root = new VBox(6, chatList, targetRow, groupRow, sendRow);
+        VBox.setVgrow(chatList, Priority.ALWAYS);
+        return new Scene(root, 500, 400);
+    }
 }
