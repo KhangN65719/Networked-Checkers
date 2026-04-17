@@ -9,6 +9,7 @@ import javafx.scene.control.*;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 
 public class GuiClient extends Application {
@@ -20,6 +21,7 @@ public class GuiClient extends Application {
     HashMap<String, Scene> sceneMap;
     Client clientConnection;
     String myUsername = null;
+    String selectedLanguage = "English";
     Stage primaryStage;
 
     ListView<String> chatList;
@@ -93,6 +95,7 @@ public class GuiClient extends Application {
         usernameField.setOnAction(e -> attemptSignIn());
         sendBtn.setOnAction(e -> sendMessage());
         messageField.setOnAction(e -> sendMessage());
+        language.setOnAction(e -> showLanguagePopup());
 
         sceneMap = new HashMap<>();
         sceneMap.put("mainScene", createMainScreenGui());
@@ -108,16 +111,86 @@ public class GuiClient extends Application {
         primaryStage.show();
     }
 
+    private void showLanguagePopup() {
+        Stage popup = new Stage();
+        popup.initModality(Modality.APPLICATION_MODAL);
+        popup.setTitle("Language");
+
+        Button english = new Button("English");
+        Button spanish = new Button("Spanish");
+
+        if (selectedLanguage.equals("English")) {
+            english.getStyleClass().setAll("button", "btn-green");
+            spanish.getStyleClass().setAll("button", "btn-unselected");
+        } else {
+            spanish.getStyleClass().setAll("button", "btn-green");
+            english.getStyleClass().setAll("button", "btn-unselected");
+        }
+
+        english.setOnAction(e -> {
+            selectedLanguage = "English";
+            english.getStyleClass().setAll("button", "btn-green");
+            spanish.getStyleClass().setAll("button", "btn-unselected");
+            applyLanguage();
+        });
+
+        spanish.setOnAction(e -> {
+            selectedLanguage = "Spanish";
+            spanish.getStyleClass().setAll("button", "btn-green");
+            english.getStyleClass().setAll("button", "btn-unselected");
+            applyLanguage();
+        });
+
+        VBox layout = new VBox(10, english, spanish);
+        layout.setAlignment(Pos.CENTER);
+        layout.setPadding(new Insets(30));
+        layout.getStyleClass().add("main-root");
+
+        Scene scene = new Scene(layout, 350, 220);
+        scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
+        popup.setScene(scene);
+        popup.showAndWait();
+    }
+
+    private void applyLanguage() {
+        if (selectedLanguage.equals("Spanish")) {
+            singlePlayer.setText("Un Jugador");
+            multiPlayer.setText("Multijugador");
+            language.setText("Idioma");
+            if (myUsername != null)
+                greeting.setText("Bienvenido, " + myUsername + "!");
+            signInBtn.setText("Iniciar Sesión");
+            usernameField.setPromptText("Ingresa tu nombre");
+            if (!errorLabel.getText().isEmpty())
+                errorLabel.setText("Nombre de usuario no disponible.");
+        } else {
+            singlePlayer.setText("Single Player");
+            multiPlayer.setText("Multiplayer");
+            language.setText("Language");
+            if (myUsername != null)
+                greeting.setText("Welcome, " + myUsername + "!");
+
+            signInBtn.setText("Sign In");
+            usernameField.setPromptText("Enter username");
+            if (!errorLabel.getText().isEmpty())
+                errorLabel.setText("Username taken. Try another.");
+        }
+    }
+
     private void handleIncoming(Message msg) {
         switch (msg.type) {
             case Message.SIGN_IN_OK:
                 myUsername = msg.sender;
-                primaryStage.setTitle("Chat - " + myUsername);
-                greeting.setText("Welcome, " + myUsername + "!");
+                primaryStage.setTitle("Checkers - " + myUsername);
+                greeting.setText(selectedLanguage.equals("Spanish")
+                        ? "Bienvenido, " + myUsername + "!"
+                        : "Welcome, " + myUsername + "!");
                 primaryStage.setScene(sceneMap.get("mainScene"));
                 break;
             case Message.SIGN_IN_FAIL:
-                errorLabel.setText("Username taken. Try another.");
+                errorLabel.setText(selectedLanguage.equals("Spanish")
+                        ? "Nombre de usuario no disponible."
+                        : "Username taken. Try another.");
                 errorLabel.setVisible(true);
                 break;
             case Message.USER_LIST:
@@ -143,7 +216,9 @@ public class GuiClient extends Application {
     private void attemptSignIn() {
         String name = usernameField.getText().trim();
         if (name.isEmpty()) {
-            errorLabel.setText("Username cannot be empty.");
+            errorLabel.setText(selectedLanguage.equals("Spanish")
+                    ? "El nombre no puede estar vacío."
+                    : "Username cannot be empty.");
             errorLabel.setVisible(true);
             return;
         }

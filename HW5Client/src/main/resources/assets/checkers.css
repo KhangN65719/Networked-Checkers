@@ -93,3 +93,29 @@
     -fx-text-fill: #ff8080;
     -fx-font-family: "Silkscreen";
 }
+
+.btn-green {
+    -fx-background-color: #4CAF50;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-pref-width: 260px;
+    -fx-padding: 18 28 18 28;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.btn-unselected {
+    -fx-background-color: #F14B49;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-pref-width: 260px;
+    -fx-padding: 18 28 18 28;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
