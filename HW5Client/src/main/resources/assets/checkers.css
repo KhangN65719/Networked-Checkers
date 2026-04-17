@@ -1,0 +1,95 @@
+.main-root {
+    -fx-background-color: #6E8083;
+    -fx-alignment: center;
+}
+
+.greeting{
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 36px;
+    -fx-text-fill: white;
+}
+
+.play-panel {
+    -fx-background-color: #365357;
+    -fx-background-radius: 14;
+    -fx-padding: 10 15 15 15;
+    -fx-alignment: center;
+}
+
+.play-buttons-hbox {
+    -fx-spacing: 10;
+    -fx-alignment: center;
+}
+
+.btn-red {
+    -fx-background-color: #F14B49;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 22 35 22 35;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);
+}
+
+.btn-red:hover {
+    -fx-background-color: #d93f3d;
+}
+
+.btn-dark {
+    -fx-background-color: #1F4354;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-padding: 18 30 18 30;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);
+}
+
+.btn-dark:hover {
+    -fx-background-color: #2a5870;
+}
+
+.login-root {
+    -fx-background-color: #6E8083;
+    -fx-alignment: center;
+    -fx-padding: 40;
+    -fx-spacing: 10;
+}
+
+.login-root .label {
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-weight: bold;
+}
+
+.login-root .text-field {
+    -fx-background-color: #4A6468;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #aabbbb;
+    -fx-background-radius: 6;
+    -fx-padding: 8;
+    -fx-font-family: "Silkscreen";
+}
+
+.login-root .button {
+    -fx-background-color: #F14B49;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-weight: bold;
+    -fx-background-radius: 6;
+    -fx-padding: 8 20 8 20;
+    -fx-cursor: hand;
+}
+
+.login-root .button:hover {
+    -fx-background-color: #d93f3d;
+}
+
+.error-label {
+    -fx-text-fill: #ff8080;
+    -fx-font-family: "Silkscreen";
+}
