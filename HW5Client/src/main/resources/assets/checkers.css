@@ -3,17 +3,12 @@
     -fx-alignment: center;
 }
 
-.greeting{
-    -fx-font-family: "Silkscreen";
-    -fx-font-size: 36px;
-    -fx-text-fill: white;
-}
-
 .play-panel {
     -fx-background-color: #365357;
     -fx-background-radius: 14;
-    -fx-padding: 10 15 15 15;
+    -fx-padding: 16 20 16 20;
     -fx-alignment: center;
+    -fx-max-width: -fx-pref-width;
 }
 
 .play-buttons-hbox {
@@ -26,10 +21,14 @@
     -fx-background-radius: 10;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-weight: bold;
     -fx-font-size: 13px;
-    -fx-padding: 22 35 22 35;
+    -fx-pref-width: 200px;
+    -fx-pref-height: 60px;
+    -fx-padding: 18 28 18 28;
     -fx-cursor: hand;
+    -fx-wrap-text: true;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);
 }
 
@@ -42,15 +41,63 @@
     -fx-background-radius: 10;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-weight: bold;
     -fx-font-size: 13px;
-    -fx-padding: 18 30 18 30;
+    -fx-pref-width: 160px;
+    -fx-pref-height: 60px;
+    -fx-padding: 18 28 18 28;
     -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
     -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 6, 0, 0, 3);
 }
 
 .btn-dark:hover {
     -fx-background-color: #2a5870;
+}
+
+.btn-green {
+    -fx-background-color: #4CAF50;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-pref-width: 260px;
+    -fx-padding: 18 28 18 28;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.btn-green:hover {
+    -fx-background-color: #43a047;
+}
+
+.btn-unselected {
+    -fx-background-color: #F14B49;
+    -fx-background-radius: 10;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-pref-width: 260px;
+    -fx-padding: 18 28 18 28;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    -fx-text-alignment: center;
+}
+
+.btn-unselected:hover {
+    -fx-background-color: #d93f3d;
+}
+
+.profile-play-hbox {
+    -fx-spacing: 20;
+    -fx-alignment: center;
+}
+
+.greeting {
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 18px;
 }
 
 .login-root {
@@ -94,28 +141,71 @@
     -fx-font-family: "Silkscreen";
 }
 
-.btn-green {
-    -fx-background-color: #4CAF50;
+.chat-root {
+    -fx-background-color: #4A6468;
+    -fx-padding: 10;
+    -fx-spacing: 6;
+}
+
+.chat-list {
+    -fx-background-color: #365357;
+    -fx-control-inner-background: #365357;
+    -fx-background-radius: 8;
+}
+
+.chat-list .list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+    -fx-padding: 6 8 6 8;
+}
+
+.chat-list .list-cell:filled:hover {
+    -fx-background-color: #4A6468;
+}
+
+.chat-field {
+    -fx-background-color: #365357;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #aabbbb;
+    -fx-background-radius: 6;
+    -fx-padding: 8;
+    -fx-font-family: "Silkscreen";
+}
+
+.chat-radio {
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+}
+
+.btn-dark-small {
+    -fx-background-color: #1F4354;
     -fx-background-radius: 10;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-size: 13px;
-    -fx-pref-width: 260px;
-    -fx-padding: 18 28 18 28;
+    -fx-font-size: 11px;
+    -fx-pref-width: 80px;
+    -fx-pref-height: 36px;
     -fx-cursor: hand;
-    -fx-alignment: center;
-    -fx-text-alignment: center;
 }
 
-.btn-unselected {
+.btn-dark-small:hover {
+    -fx-background-color: #2a5870;
+}
+
+.btn-red-small {
     -fx-background-color: #F14B49;
     -fx-background-radius: 10;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-size: 13px;
-    -fx-pref-width: 260px;
-    -fx-padding: 18 28 18 28;
+    -fx-font-size: 11px;
+    -fx-pref-width: 80px;
+    -fx-pref-height: 36px;
     -fx-cursor: hand;
-    -fx-alignment: center;
-    -fx-text-alignment: center;
+}
+
+.btn-red-small:hover {
+    -fx-background-color: #d93f3d;
 }
