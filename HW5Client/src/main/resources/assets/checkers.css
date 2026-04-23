@@ -89,6 +89,34 @@
     -fx-background-color: #d93f3d;
 }
 
+.btn-dark-small {
+    -fx-background-color: #1F4354;
+    -fx-background-radius: 6;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
+}
+
+.btn-dark-small:hover {
+    -fx-background-color: #2a5870;
+}
+
+.btn-red-small {
+    -fx-background-color: #F14B49;
+    -fx-background-radius: 6;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+    -fx-padding: 6 14 6 14;
+    -fx-cursor: hand;
+}
+
+.btn-red-small:hover {
+    -fx-background-color: #d93f3d;
+}
+
 .profile-play-hbox {
     -fx-spacing: 20;
     -fx-alignment: center;
@@ -180,32 +208,180 @@
     -fx-font-size: 11px;
 }
 
-.btn-dark-small {
-    -fx-background-color: #1F4354;
-    -fx-background-radius: 10;
+.board-root {
+    -fx-background-color: #2B2B2B;
+}
+
+.board-side-panel {
+    -fx-background-color: #2B2B2B;
+    -fx-spacing: 8;
+}
+
+.board-title-btn {
+    -fx-background-color: #F14B49;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-size: 11px;
-    -fx-pref-width: 80px;
-    -fx-pref-height: 36px;
+    -fx-font-size: 12px;
+    -fx-background-radius: 6;
+    -fx-pref-width: 140px;
+    -fx-pref-height: 40px;
     -fx-cursor: hand;
 }
 
-.btn-dark-small:hover {
+.board-label {
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+}
+
+.score-panel {
+    -fx-background-color: #3A3A3A;
+    -fx-background-radius: 6;
+    -fx-padding: 8;
+    -fx-pref-width: 140px;
+}
+
+.score-box {
+    -fx-background-color: #555555;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-pref-width: 50px;
+    -fx-pref-height: 30px;
+    -fx-alignment: center;
+    -fx-background-radius: 4;
+    -fx-padding: 4 10 4 10;
+}
+
+.board-messages {
+    -fx-background-color: #3A3A3A;
+    -fx-control-inner-background: #3A3A3A;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 10px;
+    -fx-background-radius: 6;
+    -fx-pref-width: 140px;
+}
+
+.board-chat-field {
+    -fx-background-color: #3A3A3A;
+    -fx-text-fill: white;
+    -fx-prompt-text-fill: #888888;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 10px;
+    -fx-background-radius: 6;
+    -fx-pref-width: 140px;
+    -fx-padding: 6;
+}
+
+.board-send-btn {
+    -fx-background-color: #1F4354;
+    -fx-text-fill: white;
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+    -fx-background-radius: 6;
+    -fx-pref-width: 140px;
+    -fx-pref-height: 34px;
+    -fx-cursor: hand;
+}
+
+.board-send-btn:hover {
     -fx-background-color: #2a5870;
 }
 
-.btn-red-small {
-    -fx-background-color: #F14B49;
-    -fx-background-radius: 10;
+.board-nav-btn {
+    -fx-background-color: #1F4354;
     -fx-text-fill: white;
     -fx-font-family: "Silkscreen";
-    -fx-font-size: 11px;
-    -fx-pref-width: 80px;
-    -fx-pref-height: 36px;
+    -fx-font-size: 10px;
+    -fx-background-radius: 6;
+    -fx-pref-width: 64px;
+    -fx-pref-height: 30px;
     -fx-cursor: hand;
 }
 
-.btn-red-small:hover {
+.board-nav-btn:hover {
+    -fx-background-color: #2a5870;
+}
+
+.board-grid {
+    -fx-padding: 0;
+    -fx-hgap: 0;
+    -fx-vgap: 0;
+}
+
+.overlay-dim {
+    -fx-fill: rgba(0, 0, 0, 0.55);
+}
+
+.overlay-box {
+    -fx-background-color: #3a5055;
+    -fx-background-radius: 8;
+    -fx-border-color: #2a3a3e;
+    -fx-border-width: 2;
+    -fx-border-radius: 8;
+    -fx-padding: 28 32 28 32;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.6), 20, 0.3, 0, 4);
+}
+
+.overlay-title {
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #e8e8e8;
+}
+
+.overlay-subtitle {
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 11px;
+    -fx-text-fill: #aabbbb;
+}
+
+.overlay-button {
+    -fx-font-family: "Silkscreen";
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-background-radius: 6;
+    -fx-padding: 12 24 12 24;
+    -fx-cursor: hand;
+    -fx-min-width: 120;
+    -fx-min-height: 45;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 4, 0, 0, 2);
+}
+
+.overlay-button#quitBtn {
+    -fx-background-color: #F14B49;
+}
+
+.overlay-button#quitBtn:hover {
     -fx-background-color: #d93f3d;
+}
+
+.overlay-button#quitBtn:pressed {
+    -fx-background-color: #b92b2a;
+}
+
+.overlay-button#rematchBtn {
+    -fx-background-color: #4CAF50;
+}
+
+.overlay-button#rematchBtn:hover {
+    -fx-background-color: #43a047;
+}
+
+.overlay-button#rematchBtn:pressed {
+    -fx-background-color: #389e3f;
+}
+
+.overlay-button#disconnectBtn {
+    -fx-background-color: #d93f3d;
+}
+
+.overlay-button#disconnectBtn:hover {
+    -fx-background-color: #d93f3d;
+}
+
+.overlay-button#disconnectBtn:pressed {
+    -fx-background-color: #b92b2a;
 }
