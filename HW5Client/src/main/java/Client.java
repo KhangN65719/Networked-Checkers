@@ -9,10 +9,18 @@ public class Client extends Thread {
 
 	Socket socketClient;
 	ObjectOutputStream outStream;
-	ObjectInputStream  inStream;
-	private Consumer<Serializable> callback;
+	ObjectInputStream inStream;
+	private final Consumer<Serializable> callback;
+	private Runnable onConnect;
 
-	Client(Consumer<Serializable> call) { callback = call; }
+	Client(Consumer<Serializable> call) {
+		callback = call;
+	}
+
+	Client(Consumer<Serializable> call, Runnable onConnect) {
+		callback = call;
+		this.onConnect = onConnect;
+	}
 
 	@Override
 	public void run() {
@@ -21,14 +29,20 @@ public class Client extends Thread {
 			outStream = new ObjectOutputStream(socketClient.getOutputStream());
 			inStream  = new ObjectInputStream(socketClient.getInputStream());
 			socketClient.setTcpNoDelay(true);
-		} catch (Exception e) { e.printStackTrace(); }
+			if (onConnect != null) onConnect.run();
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		while (true) {
 			try {
 				Message receivedMsg = (Message) inStream.readObject();
 				callback.accept(receivedMsg);
-			} catch (Exception e) {
-				e.printStackTrace(); break;
+			}
+			catch (Exception e) {
+				e.printStackTrace();
+				break;
 			}
 		}
 	}
@@ -38,6 +52,14 @@ public class Client extends Thread {
 			outStream.writeObject(data);
 		}
 		catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void closeConnection() {
+		try {
+			if (socketClient != null) socketClient.close();
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

@@ -22,6 +22,7 @@ public class GuiClient extends Application {
     Client clientConnection;
     String myUsername = null;
     String selectedLanguage = "English";
+    String opponentUsername = null;
     Stage primaryStage;
 
     ListView<String> chatList;
@@ -37,19 +38,18 @@ public class GuiClient extends Application {
     Label errorLabel, greeting;
     ImageView checkersIcon;
 
-    public static void main(String[] args) {
-        launch(args);
-    }
+    CheckersGui activeBoard = null;
+    int myPieceColor = 1;
+
+    public static void main(String[] args) { launch(args); }
 
     @Override
     public void start(Stage primaryStage) throws Exception {
         this.primaryStage = primaryStage;
 
         clientConnection = new Client(data -> {
-            if (!(data instanceof Message))
-                return;
-            Message msg = (Message) data;
-            Platform.runLater(() -> handleIncoming(msg));
+            if (!(data instanceof Message)) return;
+            Platform.runLater(() -> handleIncoming((Message) data));
         });
         clientConnection.start();
 
@@ -63,13 +63,10 @@ public class GuiClient extends Application {
 
         singlePlayer = new Button("Single Player");
         singlePlayer.getStyleClass().add("btn-red");
-
         messaging = new Button("Message");
         messaging.getStyleClass().add("btn-dark");
-
         language = new Button("Language");
         language.getStyleClass().add("btn-dark");
-
         multiPlayer = new Button("Multiplayer");
         multiPlayer.getStyleClass().add("btn-red");
 
@@ -83,10 +80,8 @@ public class GuiClient extends Application {
 
         playButtonHbox = new HBox(20, singlePlayer, messaging, language, multiPlayer);
         playButtonHbox.getStyleClass().add("play-buttons-hbox");
-
         playButtonVBox = new VBox(playButtonHbox);
         playButtonVBox.getStyleClass().add("play-panel");
-
         mainVBox = new VBox(150, greeting, checkersIcon, playButtonVBox);
         mainVBox.getStyleClass().add("main-root");
 
@@ -100,18 +95,151 @@ public class GuiClient extends Application {
         messageField.setOnAction(e -> sendMessage());
         language.setOnAction(e -> showLanguagePopup());
         messaging.setOnAction(e -> showChatPopup());
+        singlePlayer.setOnAction(e -> launchBoard("SinglePlayer"));
+        multiPlayer.setOnAction(e -> launchBoard("MultiPlayer"));
 
         sceneMap = new HashMap<>();
         sceneMap.put("mainScene", createMainScreenGui());
         sceneMap.put("signIn", createLoginGui());
 
-        primaryStage.setOnCloseRequest(e -> {
-            Platform.exit();
-            System.exit(0);
-        });
+        primaryStage.setOnCloseRequest(e -> { Platform.exit(); System.exit(0); });
         primaryStage.setScene(sceneMap.get("signIn"));
         primaryStage.setTitle("Checkers");
         primaryStage.show();
+    }
+
+    private void launchBoard(String gameMode) {
+        activeBoard = new CheckersGui(
+                // Constructor arguments
+                primaryStage,
+                selectedLanguage,
+                gameMode,
+                () -> {
+                    if (gameMode.equals("MultiPlayer")) {
+                        clientConnection.send(Message.forfeit(myUsername));
+                    }
+                    activeBoard = null;
+                    opponentUsername = null;
+                    primaryStage.setScene(sceneMap.get("mainScene"));
+                },
+                () -> {
+                    showLanguagePopup();
+                    if (activeBoard != null) activeBoard.applyLanguage(selectedLanguage);
+                },
+                () -> {
+                    if (gameMode.equals("MultiPlayer")) {
+                        clientConnection.send(Message.forfeit(myUsername));
+                    }
+                    clientConnection.send(Message.disconnectQueue(myUsername));
+                    activeBoard = null;
+                    opponentUsername = null;
+                    primaryStage.setScene(sceneMap.get("mainScene"));
+                },
+                () -> {
+                    if (activeBoard != null) {
+                        activeBoard.hideOverlay();
+                        activeBoard.resetBoard();
+                        clientConnection.send(Message.playAgain(myUsername));
+                        activeBoard.showWaiting(1);
+                    }
+                }
+        );
+
+        activeBoard.setMoveCallback(msg ->
+                clientConnection.send(Message.gameMove(myUsername, msg.fromRow, msg.fromCol, msg.toRow, msg.toCol))
+        );
+
+        activeBoard.setGameOverCallback(() -> {
+            Message go = new Message();
+            go.type = Message.GAME_OVER;
+            go.sender = myUsername;
+            clientConnection.send(go);
+        });
+
+        activeBoard.setBoardChatCallback(text ->
+                clientConnection.send(Message.sendPrivate(myUsername, opponentUsername, text))
+        );
+
+        primaryStage.setScene(activeBoard.createScene());
+
+        if (gameMode.equals("MultiPlayer")) {
+            Message waitMsg = new Message();
+            waitMsg.type = Message.WAITING;
+            waitMsg.sender = myUsername;
+            clientConnection.send(waitMsg);
+            activeBoard.showWaiting(1);
+        }
+    }
+
+    private void handleIncoming(Message msg) {
+        switch (msg.type) {
+            case Message.SIGN_IN_OK: {
+                myUsername = msg.sender;
+                primaryStage.setTitle("Checkers - " + myUsername);
+                greeting.setText(selectedLanguage.equals("Spanish") ? "Bienvenido, " + myUsername + "!" : "Welcome, " + myUsername + "!");
+                primaryStage.setScene(sceneMap.get("mainScene"));
+                primaryStage.setMaximized(true);
+                break;
+            }
+            case Message.SIGN_IN_FAIL: {
+                errorLabel.setText(selectedLanguage.equals("Spanish") ? "Nombre de usuario no disponible." : "Username taken. Try another.");
+                errorLabel.setVisible(true);
+                break;
+            }
+            case Message.USER_LIST: {
+                break;
+            }
+            case Message.GAME_START: {
+                if (activeBoard != null) {
+                    opponentUsername = msg.recipient;
+                    myPieceColor = msg.content.equals("LIGHT") ? 1 : 2;
+                    activeBoard.setMyPieceColor(myPieceColor);
+                    activeBoard.hideOverlay();
+                    activeBoard.resetBoard();
+                }
+                break;
+            }
+            case Message.GAME_MOVE: {
+                if (activeBoard != null) {
+                    activeBoard.applyOpponentMove(msg.fromRow, msg.fromCol, msg.toRow, msg.toCol);
+                }
+                break;
+            }
+            case Message.GAME_OVER: {
+                if (activeBoard != null) {
+                    boolean won = "WIN".equals(msg.content);
+                    boolean opponentLeft = won && opponentUsername == null;
+                    opponentUsername = null;
+                    activeBoard.showGameOver(won, opponentLeft);
+                }
+                break;
+            }
+            case Message.OPPONENT_FORFEIT: {
+                opponentUsername = null;
+                if (activeBoard != null) {
+                    activeBoard.disableRematch();
+                }
+                break;
+            }
+            case Message.WAITING: {
+                if (activeBoard != null) {
+                    activeBoard.showWaiting(msg.connectedCount);
+                }
+                break;
+            }
+            case Message.CHAT_MESSAGE: {
+                if (activeBoard != null) {
+                    activeBoard.appendMessage(msg.content);
+                }
+                else {
+                    chatList.getItems().add(msg.content);
+                }
+                break;
+            }
+            default: {
+                break;
+            }
+        }
     }
 
     private void showChatPopup() {
@@ -119,47 +247,44 @@ public class GuiClient extends Application {
         popup.initModality(Modality.APPLICATION_MODAL);
 
         targetGroup = new ToggleGroup();
-        rbAll = new RadioButton("All");
-        rbAll.setToggleGroup(targetGroup);
-        rbAll.setSelected(true);
-        rbPrivate = new RadioButton("User");
+        rbAll = new RadioButton(selectedLanguage.equals("Spanish") ? "Todos" : "All");
+        rbAll.setToggleGroup(targetGroup); rbAll.setSelected(true);
+        rbPrivate = new RadioButton(selectedLanguage.equals("Spanish") ? "Usuario" : "User");
         rbPrivate.setToggleGroup(targetGroup);
-        rbGroup = new RadioButton("Group");
+        rbGroup = new RadioButton(selectedLanguage.equals("Spanish") ? "Grupo" : "Group");
         rbGroup.setToggleGroup(targetGroup);
 
         rbAll.getStyleClass().add("chat-radio");
         rbPrivate.getStyleClass().add("chat-radio");
         rbGroup.getStyleClass().add("chat-radio");
 
-        userCombo.setPromptText("select user");
+        messageField.setPromptText(selectedLanguage.equals("Spanish") ? "Escribe un mensaje..." : "Type a message...");
+        messageField.getStyleClass().add("chat-field");
+
+        userCombo.setPromptText(selectedLanguage.equals("Spanish") ? "Seleccionar usuario" : "select user");
         userCombo.disableProperty().bind(rbPrivate.selectedProperty().not());
-        groupCombo.setPromptText("select group");
+        groupCombo.setPromptText(selectedLanguage.equals("Spanish") ? "Grupo selecto" : "select group");
         groupCombo.disableProperty().bind(rbGroup.selectedProperty().not());
 
         groupNameField = new TextField();
-        groupNameField.setPromptText("New group name");
+        groupNameField.setPromptText(selectedLanguage.equals("Spanish") ? "Nuevo nombre de grupo" : "New group name");
         groupNameField.getStyleClass().add("chat-field");
 
-        messageField.getStyleClass().add("chat-field");
-
-        Button createGroupBtn = new Button("Create");
+        Button createGroupBtn = new Button(selectedLanguage.equals("Spanish") ? "Crear" : "Create");
         createGroupBtn.getStyleClass().add("btn-dark-small");
         createGroupBtn.setOnAction(e -> {
-            String gName = groupNameField.getText().trim();
-            if (gName.isEmpty()) return;
+            String g = groupNameField.getText().trim();
+            if (g.isEmpty()) return;
             groupNameField.clear();
-            clientConnection.send(Message.createGroup(myUsername, gName));
+            clientConnection.send(Message.createGroup(myUsername, g));
         });
 
-        Button joinGroupBtn = new Button("Join");
+        Button joinGroupBtn = new Button(selectedLanguage.equals("Spanish") ? "Unirse" : "Join");
         joinGroupBtn.getStyleClass().add("btn-dark-small");
         joinGroupBtn.setOnAction(e -> {
-            String gName = groupCombo.getValue();
-            if (gName == null) {
-                chatList.getItems().add("[Error] Select a group to join.");
-                return;
-            }
-            clientConnection.send(Message.joinGroup(myUsername, gName));
+            String g = groupCombo.getValue();
+            if (g == null) { chatList.getItems().add("[Error] Select a group to join."); return; }
+            clientConnection.send(Message.joinGroup(myUsername, g));
         });
 
         sendBtn.getStyleClass().setAll("button", "btn-red-small");
@@ -176,7 +301,6 @@ public class GuiClient extends Application {
         HBox.setHgrow(messageField, Priority.ALWAYS);
 
         chatList.getStyleClass().add("chat-list");
-
         VBox root = new VBox(6, chatList, targetRow, groupRow, sendRow);
         root.getStyleClass().add("chat-root");
         VBox.setVgrow(chatList, Priority.ALWAYS);
@@ -188,7 +312,7 @@ public class GuiClient extends Application {
         popup.show();
     }
 
-    private void showLanguagePopup() {
+    public void showLanguagePopup() {
         Stage popup = new Stage();
         popup.initModality(Modality.APPLICATION_MODAL);
         popup.setTitle("Language");
@@ -199,7 +323,8 @@ public class GuiClient extends Application {
         if (selectedLanguage.equals("English")) {
             english.getStyleClass().setAll("button", "btn-green");
             spanish.getStyleClass().setAll("button", "btn-unselected");
-        } else {
+        }
+        else {
             spanish.getStyleClass().setAll("button", "btn-green");
             english.getStyleClass().setAll("button", "btn-unselected");
         }
@@ -210,7 +335,6 @@ public class GuiClient extends Application {
             spanish.getStyleClass().setAll("button", "btn-unselected");
             applyLanguage();
         });
-
         spanish.setOnAction(e -> {
             selectedLanguage = "Spanish";
             spanish.getStyleClass().setAll("button", "btn-green");
@@ -230,62 +354,24 @@ public class GuiClient extends Application {
     }
 
     private void applyLanguage() {
-        if (selectedLanguage.equals("Spanish")) {
-            singlePlayer.setText("Un Jugador");
-            multiPlayer.setText("Multijugador");
-            language.setText("Idioma");
-            messaging.setText("mensajería");
-            if (myUsername != null)
-                greeting.setText("Bienvenido, " + myUsername + "!");
-            signInBtn.setText("Iniciar Sesión");
-            usernameField.setPromptText("Ingresa tu nombre");
-            if (!errorLabel.getText().isEmpty())
-                errorLabel.setText("Nombre de usuario no disponible.");
-        } else {
-            singlePlayer.setText("Single Player");
-            multiPlayer.setText("Multiplayer");
-            language.setText("Language");
-            messaging.setText("Message");
-            if (myUsername != null)
-                greeting.setText("Welcome, " + myUsername + "!");
-            signInBtn.setText("Sign In");
-            usernameField.setPromptText("Enter username");
-            if (!errorLabel.getText().isEmpty())
-                errorLabel.setText("Username taken. Try another.");
+        boolean sp = selectedLanguage.equals("Spanish");
+        singlePlayer.setText(sp ? "Un Jugador" : "Single Player");
+        multiPlayer.setText(sp ? "Multijugador" : "Multiplayer");
+        language.setText(sp ? "Idioma" : "Language");
+        messaging.setText(sp ? "mensajería" : "Message");
+        sendBtn.setText(sp ? "Enviar" : "Send");
+        if (myUsername != null) {
+            greeting.setText(sp ? "Bienvenido, " + myUsername + "!" : "Welcome, " + myUsername + "!");
         }
-    }
 
-    private void handleIncoming(Message msg) {
-        switch (msg.type) {
-            case Message.SIGN_IN_OK:
-                myUsername = msg.sender;
-                primaryStage.setTitle("Checkers - " + myUsername);
-                greeting.setText(selectedLanguage.equals("Spanish") ? "Bienvenido, " + myUsername + "!" : "Welcome, " + myUsername + "!");
-                primaryStage.setScene(sceneMap.get("mainScene"));
-                primaryStage.setMaximized(true);
-                break;
-            case Message.SIGN_IN_FAIL:
-                errorLabel.setText(selectedLanguage.equals("Spanish") ? "Nombre de usuario no disponible." : "Username taken. Try another.");
-                errorLabel.setVisible(true);
-                break;
-            case Message.USER_LIST:
-                String prevUser = userCombo.getValue();
-                userCombo.setItems(FXCollections.observableArrayList(msg.userList));
-                if (prevUser != null && msg.userList.contains(prevUser))
-                    userCombo.setValue(prevUser);
-                break;
-            case Message.GROUP_LIST:
-                String prevGroup = groupCombo.getValue();
-                groupCombo.setItems(FXCollections.observableArrayList(msg.groupList));
-                if (prevGroup != null && msg.groupList.contains(prevGroup))
-                    groupCombo.setValue(prevGroup);
-                break;
-            case Message.CHAT_MESSAGE:
-            default:
-                chatList.getItems().add(msg.content != null ? msg.content : msg.toString());
-                chatList.scrollTo(chatList.getItems().size() - 1);
-                break;
+        signInBtn.setText(sp ? "Iniciar Sesión" : "Sign In");
+        usernameField.setPromptText(sp ? "Ingresa tu nombre" : "Enter username");
+
+        if (!errorLabel.getText().isEmpty()) {
+            errorLabel.setText(sp ? "Nombre de usuario no disponible." : "Username taken. Try another.");
         }
+
+        if (activeBoard != null) activeBoard.applyLanguage(selectedLanguage);
     }
 
     private void attemptSignIn() {
@@ -301,27 +387,28 @@ public class GuiClient extends Application {
 
     private void sendMessage() {
         String text = messageField.getText().trim();
-        if (text.isEmpty())
-            return;
+        if (text.isEmpty()) return;
         messageField.clear();
 
-        RadioButton selected = (RadioButton) targetGroup.getSelectedToggle();
-        if (selected == rbAll) {
+        RadioButton sel = (RadioButton) targetGroup.getSelectedToggle();
+        if (sel == rbAll) {
             clientConnection.send(Message.sendAll(myUsername, text));
-        } else if (selected == rbPrivate) {
+        }
+        else if (sel == rbPrivate) {
             String target = userCombo.getValue();
             if (target == null) {
                 chatList.getItems().add("[Error] Select a user first.");
                 return;
             }
             clientConnection.send(Message.sendPrivate(myUsername, target, text));
-        } else if (selected == rbGroup) {
-            String gName = groupCombo.getValue();
-            if (gName == null) {
+        }
+        else if (sel == rbGroup) {
+            String g = groupCombo.getValue();
+            if (g == null) {
                 chatList.getItems().add("[Error] Select a group first.");
                 return;
             }
-            clientConnection.send(Message.sendGroup(myUsername, gName, text));
+            clientConnection.send(Message.sendGroup(myUsername, g, text));
         }
     }
 
