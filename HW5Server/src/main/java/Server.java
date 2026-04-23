@@ -108,8 +108,8 @@ public class Server {
 
 	public class TheServer extends Thread {
 		public void run() {
-			try (ServerSocket ss = new ServerSocket(5555)) {
-				callback.accept("Server is waiting for clients on port 5555...");
+			try (ServerSocket ss = new ServerSocket(6767)) {
+				callback.accept("Server is waiting for clients on port 6767...");
 				while (true) {
 					Socket socket = ss.accept();
 					ClientThread ct = new ClientThread(socket, clientCount++);
