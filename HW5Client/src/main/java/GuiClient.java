@@ -1,7 +1,6 @@
 import java.util.HashMap;
 import javafx.application.Application;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -44,7 +43,7 @@ public class GuiClient extends Application {
     public static void main(String[] args) { launch(args); }
 
     @Override
-    public void start(Stage primaryStage) throws Exception {
+    public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
 
         chatList = new ListView<>();

@@ -18,6 +18,14 @@ public class Server {
 	private final LinkedList<ClientThread> matchQueue = new LinkedList<>();
 	private final Map<String, ClientThread> rematchQueue = new HashMap<>();
 
+	private String ts() {
+		return "[" + new java.text.SimpleDateFormat("HH:mm:ss").format(new java.util.Date()) + "] ";
+	}
+
+	private void log(String msg) {
+		callback.accept(ts() + msg);
+	}
+
 	Server(Consumer<Serializable> call) {
 		callback = call;
 		server = new TheServer();
@@ -54,7 +62,7 @@ public class Server {
 	synchronized void enqueueForMatch(ClientThread ct) {
 		if (matchQueue.contains(ct)) return;
 		matchQueue.add(ct);
-		callback.accept("(Queue) " + ct.username + " is waiting. Queue size: " + matchQueue.size());
+		log("QUEUE: '" + ct.username + "' entered matchmaking queue (queue size: " + matchQueue.size() + ")");
 
 		Message waiting = new Message();
 		waiting.type = Message.WAITING;
@@ -73,7 +81,7 @@ public class Server {
 		p2.opponent = p1;
 		p1.lastOpponentUsername = p2.username;
 		p2.lastOpponentUsername = p1.username;
-		callback.accept("(Match) " + p1.username + " vs " + p2.username);
+		log("MATCH STARTED: '" + p1.username + "' (LIGHT) vs '" + p2.username + "' (DARK)");
 
 		Message start1 = new Message();
 		start1.type = Message.GAME_START;
@@ -103,21 +111,22 @@ public class Server {
 
 		winner.opponent = null;
 		loser.opponent = null;
-		callback.accept("(Game Over) " + winner.username + " beat " + loser.username);
+		log("GAME OVER: '" + winner.username + "' beat '" + loser.username + "'");
 	}
 
 	public class TheServer extends Thread {
 		public void run() {
 			try (ServerSocket ss = new ServerSocket(6767)) {
-				callback.accept("Server is waiting for clients on port 6767...");
+				log("Server started. Listening on port 6767...");
 				while (true) {
 					Socket socket = ss.accept();
 					ClientThread ct = new ClientThread(socket, clientCount++);
 					clients.add(ct);
 					ct.start();
+					log("New connection from " + socket.getInetAddress().getHostAddress() + " (client #" + ct.id + ")");
 				}
 			} catch (Exception e) {
-				callback.accept("Server socket failed: " + e.getMessage());
+				log("ERROR: Server socket failed: " + e.getMessage());
 			}
 		}
 	}
@@ -149,7 +158,7 @@ public class Server {
 				inStream  = new ObjectInputStream(connection.getInputStream());
 				connection.setTcpNoDelay(true);
 			} catch (Exception e) {
-				callback.accept("Could not open streams for client #" + id); return;
+				log("ERROR: Could not open streams for client #" + id); return;
 			}
 			while (true) {
 				try {
@@ -170,13 +179,13 @@ public class Server {
 					if (name.isEmpty() || takenUsernames.contains(name)) {
 						reply.type = Message.SIGN_IN_FAIL;
 						send(reply);
-						callback.accept("Sign-in REJECTED for '" + name + "'");
+						log("SIGN-IN REJECTED: name='" + name + "' (already taken or empty)");
 					} else {
 						takenUsernames.add(name);
 						this.username = name;
 						reply.type = Message.SIGN_IN_OK;
 						send(reply);
-						callback.accept("'" + name + "' connected (client #" + id + ")");
+						log("SIGN-IN OK: '" + name + "' (client #" + id + ", total users: " + takenUsernames.size() + ")");
 						broadcastUserList();
 						broadcastGroupList();
 					}
@@ -190,7 +199,7 @@ public class Server {
 					synchronized (Server.this) {
 						matchQueue.remove(this);
 					}
-					callback.accept("(Queue) " + username + " left the queue.");
+					log("QUEUE: '" + username + "' left the matchmaking queue");
 					break;
 				}
 				case Message.PLAY_AGAIN: {
@@ -205,13 +214,13 @@ public class Server {
 						noOpp.type = Message.GAME_OVER;
 						noOpp.content = "NO_OPPONENT";
 						send(noOpp);
-						callback.accept("(Rematch) " + username + " has no opponent to rematch (disconnected).");
+						log("REMATCH: '" + username + "' requested rematch but opponent is gone");
 						break;
 					}
 					synchronized (Server.this) {
 						if (rematchQueue.containsKey(lastOpp) && rematchQueue.get(lastOpp) == oppThread) {
 							rematchQueue.remove(lastOpp);
-							callback.accept("(Rematch) " + username + " and " + lastOpp + " are rematching.");
+							log("REMATCH STARTED: '" + username + "' and '" + lastOpp + "' are rematching");
 							startGame(this, oppThread);
 						}
 						else {
@@ -220,7 +229,7 @@ public class Server {
 							waiting.type = Message.WAITING;
 							waiting.connectedCount = 1;
 							send(waiting);
-							callback.accept("(Rematch) " + username + " is waiting for " + lastOpp + " to rematch.");
+							log("REMATCH: '" + username + "' is waiting for '" + lastOpp + "' to accept rematch");
 						}
 					}
 					break;
@@ -232,7 +241,7 @@ public class Server {
 						}
 						opponent = null;
 					}
-					callback.accept("(Game Over) " + username + " reported game finished.");
+					log("GAME OVER: '" + username + "' reported game finished");
 					break;
 				}
 				case Message.FORFEIT: {
@@ -247,24 +256,24 @@ public class Server {
 								out.content = "NO_OPPONENT";
 								lastOpp.opponent = null;
 								lastOpp.send(out);
-								callback.accept("(Forfeit) Sent OPPONENT_FORFEIT to " + lastOpponentUsername);
+								log("FORFEIT: Notified '" + lastOpponentUsername + "' that opponent forfeited");
 							}
 						}
 						opponent = null;
 						lastOpponentUsername = null;
 					}
-					callback.accept("(Forfeit) " + username + " went home.");
+					log("FORFEIT: '" + username + "' forfeited and returned to menu");
 					break;
 				}
 				case Message.GAME_MOVE: {
 					if (opponent != null) {
-						callback.accept("(Move) " + username + ": (" + data.fromRow + "," + data.fromCol + ") -> (" + data.toRow + "," + data.toCol + ")");
+						log("MOVE: '" + username + "' (" + data.fromRow + "," + data.fromCol + ") -> (" + data.toRow + "," + data.toCol + ")");
 						opponent.send(data);
 					}
 					break;
 				}
 				case Message.SEND_ALL: {
-					callback.accept("[Broadcast] " + data.sender + ": " + data.content);
+					log("BROADCAST: '" + data.sender + "': " + data.content);
 					Message out = new Message();
 					out.type = Message.CHAT_MESSAGE;
 					out.content = "(All)" + data.sender + ": " + data.content;
@@ -273,7 +282,7 @@ public class Server {
 				}
 
 				case Message.SEND_PRIVATE: {
-					callback.accept("(DM)" + data.sender + " -> " + data.recipient + ": " + data.content);
+					log("DM: '" + data.sender + "' -> '" + data.recipient + "': " + data.content);
 					ClientThread target = findClient(data.recipient);
 					Message out = new Message();
 					out.type = Message.CHAT_MESSAGE;
@@ -305,7 +314,7 @@ public class Server {
 						Set<String> members = new HashSet<>();
 						members.add(data.sender);
 						groups.put(gName, members);
-						callback.accept("(Group Created) '" + gName + "' by " + data.sender);
+						log("GROUP CREATED: '" + gName + "' by '" + data.sender + "'");
 						reply.content = "(Server) Group '" + gName + "' created. You are a member.";
 						send(reply);
 						broadcastGroupList();
@@ -326,7 +335,7 @@ public class Server {
 					}
 					else {
 						groups.get(gName).add(data.sender);
-						callback.accept("(Group Join) " + data.sender + " joined '" + gName + "'");
+						log("GROUP JOIN: '" + data.sender + "' joined '" + gName + "' (" + groups.get(gName).size() + " members)");
 						reply.content = "(Server) You joined group '" + gName + "'.";
 						send(reply);
 						Message notify = new Message();
@@ -343,7 +352,7 @@ public class Server {
 				}
 				case Message.SEND_GROUP: {
 					String gName = data.groupName;
-					callback.accept("(Group " + gName + ") " + data.sender + ": " + data.content);
+					log("GROUP MSG [" + gName + "]: '" + data.sender + "': " + data.content);
 					Message out = new Message();
 					out.type = Message.CHAT_MESSAGE;
 					if (!groups.containsKey(gName)) {
@@ -387,11 +396,11 @@ public class Server {
 					opponent.send(out);
 					opponent.opponent = null;
 				}
-				callback.accept("'" + username + "' disconnected.");
+				log("DISCONNECT: '" + username + "' left (users remaining: " + takenUsernames.size() + ")");
 				broadcastUserList();
 				broadcastGroupList();
 			} else {
-				callback.accept("Anonymous client #" + id + " disconnected.");
+				log("DISCONNECT: Anonymous client #" + id + " dropped (never signed in)");
 			}
 		}
 	}
