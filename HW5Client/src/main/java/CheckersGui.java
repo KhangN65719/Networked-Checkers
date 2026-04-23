@@ -9,6 +9,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.stage.Stage;
 import java.util.function.Consumer;
+import java.util.ArrayList;
+import java.util.Random;
 
 public class CheckersGui {
 
@@ -60,6 +62,8 @@ public class CheckersGui {
     private boolean inChainJump = false;
     private int chainRow = -1;
     private int chainCol = -1;
+
+    private StackPane[][] tileCache = new StackPane[BOARD_SIZE][BOARD_SIZE];
 
     public CheckersGui(Stage primaryStage, String selectedLanguage, String mode, Runnable homeAction, Runnable langAction, Runnable disconnectAction, Runnable rematchAction) {
         this.primaryStage = primaryStage;
@@ -142,6 +146,7 @@ public class CheckersGui {
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Regular.ttf"), 12);
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Bold.ttf"), 12);
         scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
+        refreshBoard();
         return scene;
     }
 
@@ -278,6 +283,7 @@ public class CheckersGui {
         });
 
         tile.setUserData(new TileData(row, col, piece));
+        tileCache[row][col] = tile;
         return tile;
     }
 
@@ -394,12 +400,8 @@ public class CheckersGui {
     }
 
     private StackPane getTile(int row, int col) {
-        for (var child : board.getChildren()) {
-            if (GridPane.getRowIndex(child) == row && GridPane.getColumnIndex(child) == col) {
-                return (StackPane) child;
-            }
-        }
-        return null;
+        if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return null;
+        return tileCache[row][col];
     }
 
     private void refreshBoard() {
@@ -472,6 +474,13 @@ public class CheckersGui {
             updateTurnLabel();
             refreshBoard();
             checkWinCondition();
+            if (sendToServer && mode.equals("SinglePlayer")) {
+                myTurn = false;
+                updateTurnLabel();
+                javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(600));
+                pause.setOnFinished(e -> doBotMove());
+                pause.play();
+            }
         }
     }
 
@@ -717,6 +726,92 @@ public class CheckersGui {
     public void updateOpponentScore(int score) {
         opponentScore = score;
         if (scoreRight != null) scoreRight.setText(String.valueOf(opponentScore));
+    }
+
+    private void doBotMove() {
+        int[] dRow = {-2, -2, 2, 2};
+        int[] dCol = {-2,  2, -2, 2};
+        int[] mRow = {-1, -1, 1, 1};
+        int[] mCol = {-1,  1, -1, 1};
+
+        ArrayList<int[]> captures = new ArrayList<>();
+        ArrayList<int[]> moves    = new ArrayList<>();
+
+        for (int r = 0; r < BOARD_SIZE; r++) {
+            for (int c = 0; c < BOARD_SIZE; c++) {
+                int p = pieces[r][c];
+                if (p != 2 && p != 4) continue;
+                for (int i = 0; i < 4; i++) {
+                    if (isValidCapture(r, c, r + dRow[i], c + dCol[i]))
+                        captures.add(new int[]{r, c, r + dRow[i], c + dCol[i]});
+                    if (isValidMove(r, c, r + mRow[i], c + mCol[i]))
+                        moves.add(new int[]{r, c, r + mRow[i], c + mCol[i]});
+                }
+            }
+        }
+
+        ArrayList<int[]> choices = captures.isEmpty() ? moves : captures;
+        if (choices.isEmpty()) return;
+
+        int[] pick = choices.get(new Random().nextInt(choices.size()));
+        executeBotMove(pick[0], pick[1], pick[2], pick[3]);
+    }
+
+    private void executeBotMove(int fromRow, int fromCol, int toRow, int toCol) {
+        boolean wasCapture = Math.abs(toRow - fromRow) == 2;
+        boolean justKinged = false;
+
+        if (wasCapture) {
+            int midRow = (fromRow + toRow) / 2;
+            int midCol = (fromCol + toCol) / 2;
+            int capturedPiece = pieces[midRow][midCol];
+            pieces[midRow][midCol] = 0;
+            if (capturedPiece == 1 || capturedPiece == 3) opponentScore++;
+            else if (capturedPiece == 2 || capturedPiece == 4) myScore++;
+            if (scoreLeft  != null) scoreLeft.setText(String.valueOf(myScore));
+            if (scoreRight != null) scoreRight.setText(String.valueOf(opponentScore));
+        }
+
+        pieces[toRow][toCol] = pieces[fromRow][fromCol];
+        pieces[fromRow][fromCol] = 0;
+
+        if (pieces[toRow][toCol] == 2 && toRow == BOARD_SIZE - 1) {
+            pieces[toRow][toCol] = 4; justKinged = true;
+        }
+
+        currentTurn = (currentTurn == 1) ? 2 : 1;
+        refreshBoard();
+        checkWinCondition();
+
+        if (wasCapture && !justKinged && canCaptureBotFrom(toRow, toCol)) {
+            int[] dRow = {-2, -2, 2, 2};
+            int[] dCol = {-2,  2, -2, 2};
+            ArrayList<int[]> chain = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                int nr = toRow + dRow[i], nc = toCol + dCol[i];
+                if (isValidCapture(toRow, toCol, nr, nc))
+                    chain.add(new int[]{toRow, toCol, nr, nc});
+            }
+            if (!chain.isEmpty()) {
+                int[] next = chain.get(new Random().nextInt(chain.size()));
+                javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(600));
+                pause.setOnFinished(e -> executeBotMove(next[0], next[1], next[2], next[3]));
+                pause.play();
+                return;
+            }
+        }
+
+        myTurn = true;
+        updateTurnLabel();
+    }
+
+    private boolean canCaptureBotFrom(int row, int col) {
+        int[] dRow = {-2, -2, 2, 2};
+        int[] dCol = {-2,  2, -2, 2};
+        for (int i = 0; i < 4; i++) {
+            if (isValidCapture(row, col, row + dRow[i], col + dCol[i])) return true;
+        }
+        return false;
     }
 
     private static class TileData {

@@ -47,12 +47,6 @@ public class GuiClient extends Application {
     public void start(Stage primaryStage) throws Exception {
         this.primaryStage = primaryStage;
 
-        clientConnection = new Client(data -> {
-            if (!(data instanceof Message)) return;
-            Platform.runLater(() -> handleIncoming((Message) data));
-        });
-        clientConnection.start();
-
         chatList = new ListView<>();
         usernameField = new TextField();
         usernameField.setPromptText("Enter username");
@@ -139,28 +133,40 @@ public class GuiClient extends Application {
                     if (activeBoard != null) {
                         activeBoard.hideOverlay();
                         activeBoard.resetBoard();
-                        clientConnection.send(Message.playAgain(myUsername));
-                        activeBoard.showWaiting(1);
+                        if (gameMode.equals("MultiPlayer")) {
+                            clientConnection.send(Message.playAgain(myUsername));
+                            activeBoard.showWaiting(1);
+                        }
                     }
                 }
         );
 
-        activeBoard.setMoveCallback(msg ->
-                clientConnection.send(Message.gameMove(myUsername, msg.fromRow, msg.fromCol, msg.toRow, msg.toCol))
-        );
+        if (gameMode.equals("SinglePlayer")) {
+            activeBoard.setMoveCallback(null);
+            activeBoard.setGameOverCallback(null);
+            activeBoard.setBoardChatCallback(null);
+        } else {
+            activeBoard.setMoveCallback(msg ->
+                    clientConnection.send(Message.gameMove(myUsername, msg.fromRow, msg.fromCol, msg.toRow, msg.toCol))
+            );
 
-        activeBoard.setGameOverCallback(() -> {
-            Message go = new Message();
-            go.type = Message.GAME_OVER;
-            go.sender = myUsername;
-            clientConnection.send(go);
-        });
+            activeBoard.setGameOverCallback(() -> {
+                Message go = new Message();
+                go.type = Message.GAME_OVER;
+                go.sender = myUsername;
+                clientConnection.send(go);
+            });
 
-        activeBoard.setBoardChatCallback(text ->
-                clientConnection.send(Message.sendPrivate(myUsername, opponentUsername, text))
-        );
+            activeBoard.setBoardChatCallback(text ->
+                    clientConnection.send(Message.sendPrivate(myUsername, opponentUsername, text))
+            );
+        }
 
         primaryStage.setScene(activeBoard.createScene());
+
+        if (gameMode.equals("SinglePlayer")) {
+            activeBoard.setMyPieceColor(1);
+        }
 
         if (gameMode.equals("MultiPlayer")) {
             Message waitMsg = new Message();
@@ -178,15 +184,11 @@ public class GuiClient extends Application {
                 primaryStage.setTitle("Checkers - " + myUsername);
                 greeting.setText(selectedLanguage.equals("Spanish") ? "Bienvenido, " + myUsername + "!" : "Welcome, " + myUsername + "!");
                 primaryStage.setScene(sceneMap.get("mainScene"));
-                primaryStage.setMaximized(true);
                 break;
             }
             case Message.SIGN_IN_FAIL: {
                 errorLabel.setText(selectedLanguage.equals("Spanish") ? "Nombre de usuario no disponible." : "Username taken. Try another.");
                 errorLabel.setVisible(true);
-                break;
-            }
-            case Message.USER_LIST: {
                 break;
             }
             case Message.GAME_START: {
@@ -382,7 +384,19 @@ public class GuiClient extends Application {
             return;
         }
         errorLabel.setVisible(false);
-        clientConnection.send(Message.signIn(name));
+
+        if (clientConnection != null && clientConnection.isAlive()) {
+            clientConnection.send(Message.signIn(name));
+        } else {
+            clientConnection = new Client(
+                    data -> {
+                        if (!(data instanceof Message)) return;
+                        Platform.runLater(() -> handleIncoming((Message) data));
+                    },
+                    () -> clientConnection.send(Message.signIn(name))
+            );
+            clientConnection.start();
+        }
     }
 
     private void sendMessage() {
@@ -425,7 +439,7 @@ public class GuiClient extends Application {
         root.setCenter(mainVBox);
         root.setBottom(centered);
 
-        Scene scene = new Scene(root, 1200, 800);
+        Scene scene = new Scene(root, 1000, 600);
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Regular.ttf"), 12);
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Bold.ttf"), 12);
         scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
