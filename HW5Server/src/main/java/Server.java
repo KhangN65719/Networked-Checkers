@@ -155,7 +155,7 @@ public class Server {
 		public void run() {
 			try {
 				outStream = new ObjectOutputStream(connection.getOutputStream());
-				inStream  = new ObjectInputStream(connection.getInputStream());
+				inStream = new ObjectInputStream(connection.getInputStream());
 				connection.setTcpNoDelay(true);
 			} catch (Exception e) {
 				log("ERROR: Could not open streams for client #" + id); return;
