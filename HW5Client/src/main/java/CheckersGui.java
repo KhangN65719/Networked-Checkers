@@ -26,6 +26,8 @@ public class CheckersGui {
     private static final Color FORCED_CAPTURE = Color.web("#FF2222");
 
     private Label scoreLeft, scoreRight, scoreLabel, msgLabel, turnLabel, recordLabel;
+    private Label myNameLabel, opponentNameLabel;
+    private Label myRecordLabel, oppRecordLabel;
     private Label moveLogLabel;
     private TextArea messagesArea;
     private TextArea moveLogArea;
@@ -71,6 +73,8 @@ public class CheckersGui {
     private String myName = "You";
     private String opponentName = "Opponent";
     private int moveNumber = 0;
+    private int sessionWins = 0;
+    private int sessionLosses = 0;
 
     private StackPane[][] tileCache = new StackPane[BOARD_SIZE][BOARD_SIZE];
 
@@ -104,14 +108,26 @@ public class CheckersGui {
     public void setPlayerNames(String myName, String opponentName) {
         this.myName = (myName != null && !myName.isEmpty()) ? myName : "You";
         this.opponentName = (opponentName != null && !opponentName.isEmpty()) ? opponentName : "Opponent";
+        updateNameLabels();
+    }
+
+    private void updateNameLabels() {
+        if (myNameLabel != null) myNameLabel.setText(myName);
+        if (opponentNameLabel != null) opponentNameLabel.setText(opponentName);
     }
 
     public void setRecord(int wins, int losses) {
-        if (recordLabel != null) {
-            boolean sp = selectedLanguage.equals("Spanish");
-            String wLabel = sp ? "G" : "W";
-            String lLabel = sp ? "P" : "L";
-            recordLabel.setText(wLabel + wins + "  " + lLabel + losses);
+        this.sessionWins = wins;
+        this.sessionLosses = losses;
+        boolean sp = selectedLanguage.equals("Spanish");
+        String wLabel = sp ? "G" : "W";
+        String lLabel = sp ? "P" : "L";
+        if (mode.equals("MultiPlayer")) {
+            if (myRecordLabel  != null) myRecordLabel.setText(wLabel + wins + " " + lLabel + losses);
+            if (oppRecordLabel != null) oppRecordLabel.setText(wLabel + losses + " " + lLabel + wins);
+        }
+        else {
+            if (recordLabel != null) recordLabel.setText(wLabel + wins + "  " + lLabel + losses);
         }
     }
 
@@ -160,7 +176,7 @@ public class CheckersGui {
         opponentScore = 0;
         myTurn = (myPieceColor == 1);
         moveNumber = 0;
-        if (scoreLeft  != null) scoreLeft.setText("0");
+        if (scoreLeft != null) scoreLeft.setText("0");
         if (scoreRight != null) scoreRight.setText("0");
         if (moveLogArea != null) moveLogArea.clear();
         refreshBoard();
@@ -199,13 +215,48 @@ public class CheckersGui {
         HBox scoreRow = new HBox(10, scoreLeft, scoreRight);
         scoreRow.setAlignment(Pos.CENTER);
 
-        VBox scoreBox = new VBox(4, scoreLabel, scoreRow);
+        VBox scoreBox;
+        if (mode.equals("MultiPlayer")) {
+            myNameLabel = new Label(myName);
+            myNameLabel.getStyleClass().add("board-label");
+            myNameLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #90EE90;");
+            myNameLabel.setMaxWidth(85);
+            myNameLabel.setAlignment(Pos.CENTER);
+
+            opponentNameLabel = new Label(opponentName);
+            opponentNameLabel.getStyleClass().add("board-label");
+            opponentNameLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #FF9999;");
+            opponentNameLabel.setMaxWidth(85);
+            opponentNameLabel.setAlignment(Pos.CENTER);
+
+            HBox nameRow = new HBox(10, myNameLabel, opponentNameLabel);
+            nameRow.setAlignment(Pos.CENTER);
+
+            myRecordLabel = new Label("W0 L0");
+            myRecordLabel.getStyleClass().add("board-label");
+            myRecordLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #90EE90;");
+            myRecordLabel.setMaxWidth(85);
+            myRecordLabel.setAlignment(Pos.CENTER);
+
+            oppRecordLabel = new Label("W0 L0");
+            oppRecordLabel.getStyleClass().add("board-label");
+            oppRecordLabel.setStyle("-fx-font-size: 10px; -fx-text-fill: #FF9999;");
+            oppRecordLabel.setMaxWidth(85);
+            oppRecordLabel.setAlignment(Pos.CENTER);
+
+            HBox recordRow = new HBox(10, myRecordLabel, oppRecordLabel);
+            recordRow.setAlignment(Pos.CENTER);
+
+            scoreBox = new VBox(2, scoreLabel, nameRow, recordRow, scoreRow);
+        }
+        else {
+            recordLabel = new Label("W0  L0");
+            recordLabel.getStyleClass().add("board-label");
+            recordLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #aaddaa;");
+            scoreBox = new VBox(4, scoreLabel, recordLabel, scoreRow);
+        }
         scoreBox.getStyleClass().add("score-panel");
         scoreBox.setAlignment(Pos.CENTER);
-
-        recordLabel = new Label("W0  L0");
-        recordLabel.getStyleClass().add("board-label");
-        recordLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #aaddaa;");
 
         turnLabel = new Label();
         turnLabel.getStyleClass().add("board-label");
@@ -262,13 +313,14 @@ public class CheckersGui {
             VBox.setVgrow(moveLogArea, Priority.ALWAYS);
 
             messagesArea = null;
-            chatField    = null;
-            sendBtn      = null;
-            msgLabel     = null;
+            chatField = null;
+            sendBtn = null;
+            msgLabel = null;
 
-            side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, moveLogLabel, moveLogArea, navRow);
-        } else {
-            side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
+            side = new VBox(8, titleBtn, scoreBox, turnLabel, moveLogLabel, moveLogArea, navRow);
+        }
+        else {
+            side = new VBox(8, titleBtn, scoreBox, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
         }
 
         side.getStyleClass().add("board-side-panel");
@@ -511,7 +563,6 @@ public class CheckersGui {
         }
     }
 
-    /** Highlights the tile of every piece that must capture this turn. */
     private void highlightForcedPieces() {
         if (!myTurn) return;
         for (int r = 0; r < BOARD_SIZE; r++) {
@@ -564,7 +615,7 @@ public class CheckersGui {
             entry.append(sp ? " captura" : " capture");
         }
         if (justKinged) {
-            entry.append(sp ? " rey" : "  king");
+            entry.append(sp ? " rey" : " king");
         }
 
         moveLogArea.appendText(entry.toString() + "\n");
@@ -577,19 +628,17 @@ public class CheckersGui {
         if (Math.abs(toRow - fromRow) == 2) {
             int midRow = (fromRow + toRow) / 2;
             int midCol = (fromCol + toCol) / 2;
-            int capturedPiece = pieces[midRow][midCol];
+
             pieces[midRow][midCol] = 0;
             wasCapture = true;
 
-            if (capturedPiece == 1 || capturedPiece == 3) {
+            if (sendToServer) {
+                myScore++;
+            } else {
                 opponentScore++;
             }
-            else if (capturedPiece == 2 || capturedPiece == 4) {
-                myScore++;
-            }
 
-            if (scoreLeft  != null) scoreLeft.setText(String.valueOf(myScore));
-
+            if (scoreLeft != null) scoreLeft.setText(String.valueOf(myScore));
             if (scoreRight != null) scoreRight.setText(String.valueOf(opponentScore));
         }
 
@@ -729,9 +778,21 @@ public class CheckersGui {
                 if (p == 2 || p == 4) darkCount++;
             }
         if (lightCount == 0 || darkCount == 0) {
+
             boolean myPieceWon = (myPieceColor == 1 && darkCount == 0) || (myPieceColor == 2 && lightCount == 0);
+
+            if (myPieceWon) {
+                sessionWins++;
+            }
+            else {
+                sessionLosses++;
+            }
+
+            setRecord(sessionWins, sessionLosses);
+
             if (gameOverCallback != null) gameOverCallback.run();
             if (resultCallback != null) resultCallback.accept(myPieceWon);
+
             showGameOver(myPieceWon);
         }
     }
@@ -818,14 +879,12 @@ public class CheckersGui {
         langBtn.setText(sp ? "ING" : "LANG");
         if (chatField != null) chatField.setPromptText(sp ? "Escribe..." : "Type...");
         updateTurnLabel();
-        if (recordLabel != null) {
-            String text = recordLabel.getText();
-            try {
-                String[] parts = text.trim().split("\\s+");
-                int w = Integer.parseInt(parts[0].substring(1));
-                int l = Integer.parseInt(parts[1].substring(1));
-                recordLabel.setText((sp ? "G" : "W") + w + "  " + (sp ? "P" : "L") + l);
-            } catch (Exception ignored) {}
+        if (mode.equals("MultiPlayer")) {
+            setRecord(sessionWins, sessionLosses);
+        } else if (recordLabel != null) {
+            String wLabel = sp ? "G" : "W";
+            String lLabel = sp ? "P" : "L";
+            recordLabel.setText(wLabel + sessionWins + "  " + lLabel + sessionLosses);
         }
         if (overlayBox != null && overlayBox.isVisible()) {
             String title = overlayTitle.getText();
@@ -853,6 +912,9 @@ public class CheckersGui {
         confirmBtn.setId("quitBtn");
         confirmBtn.setOnAction(e -> {
             dialog.close();
+            sessionLosses++;
+            setRecord(sessionWins, sessionLosses);
+
             if (homeAction != null) homeAction.run();
         });
 

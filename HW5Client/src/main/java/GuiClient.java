@@ -247,6 +247,20 @@ public class GuiClient extends Application {
                 }
                 break;
             }
+            case Message.USER_LIST: {
+                if (userCombo != null) {
+                    userCombo.getItems().clear();
+                    userCombo.getItems().addAll(msg.userList);
+                }
+                break;
+            }
+            case Message.GROUP_LIST: {
+                if (groupCombo != null) {
+                    groupCombo.getItems().clear();
+                    groupCombo.getItems().addAll(msg.groupList);
+                }
+                break;
+            }
             default: {
                 break;
             }

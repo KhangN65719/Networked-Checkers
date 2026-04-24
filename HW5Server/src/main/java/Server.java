@@ -33,19 +33,19 @@ public class Server {
 	}
 
 	private synchronized void broadcastUserList() {
-		Message msg = new Message();
-		msg.type = Message.USER_LIST;
-		msg.userList = new ArrayList<>(takenUsernames);
 		for (ClientThread ct : clients) {
+			Message msg = new Message();
+			msg.type = Message.USER_LIST;
+			msg.userList = new ArrayList<>(takenUsernames);
 			ct.send(msg);
 		}
 	}
 
 	private synchronized void broadcastGroupList() {
-		Message msg = new Message();
-		msg.type = Message.GROUP_LIST;
-		msg.groupList = new ArrayList<>(groups.keySet());
 		for (ClientThread ct : clients) {
+			Message msg = new Message();
+			msg.type = Message.GROUP_LIST;
+			msg.groupList = new ArrayList<>(groups.keySet());
 			ct.send(msg);
 		}
 	}

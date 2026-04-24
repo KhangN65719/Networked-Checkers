@@ -1,15 +1,19 @@
 import java.io.Serializable;
+import java.util.ArrayList;
 
 public class Message implements Serializable {
-    private static final long serialVersionUID = 42L;
+    static final long serialVersionUID = 42L;
+
     public static final int SIGN_IN = 1;
     public static final int SIGN_IN_OK = 2;
     public static final int SIGN_IN_FAIL = 3;
+    public static final int USER_LIST = 4;
     public static final int SEND_ALL = 5;
     public static final int SEND_PRIVATE = 6;
     public static final int CREATE_GROUP = 7;
     public static final int SEND_GROUP = 8;
     public static final int CHAT_MESSAGE = 9;
+    public static final int GROUP_LIST = 10;
     public static final int JOIN_GROUP = 11;
     public static final int WAITING = 12;
     public static final int GAME_START = 13;
@@ -27,6 +31,8 @@ public class Message implements Serializable {
     public String content;
     public int connectedCount;
     public int fromRow, fromCol, toRow, toCol;
+    public ArrayList<String> userList;
+    public ArrayList<String> groupList;
 
     public Message() {}
 
