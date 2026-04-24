@@ -146,6 +146,7 @@ public class GuiClient extends Application {
             activeBoard.setMoveCallback(null);
             activeBoard.setBoardChatCallback(null);
             activeBoard.setGameOverCallback(null);
+            activeBoard.setPlayerNames(myUsername, "Bot");
             activeBoard.setResultCallback(won -> {
                 if (won) sessionWins++; else sessionLosses++;
                 activeBoard.setRecord(sessionWins, sessionLosses);
@@ -200,6 +201,7 @@ public class GuiClient extends Application {
                 if (activeBoard != null) {
                     opponentUsername = msg.recipient;
                     myPieceColor = msg.content.equals("LIGHT") ? 1 : 2;
+                    activeBoard.setPlayerNames(myUsername, opponentUsername);
                     activeBoard.setMyPieceColor(myPieceColor);
                     activeBoard.hideOverlay();
                     activeBoard.resetBoard();

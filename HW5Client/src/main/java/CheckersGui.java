@@ -26,7 +26,9 @@ public class CheckersGui {
     private static final Color FORCED_CAPTURE = Color.web("#FF2222");
 
     private Label scoreLeft, scoreRight, scoreLabel, msgLabel, turnLabel, recordLabel;
+    private Label moveLogLabel;
     private TextArea messagesArea;
+    private TextArea moveLogArea;
     private TextField chatField;
     private Button sendBtn, homeBtn, langBtn, titleBtn;
     private GridPane board;
@@ -64,6 +66,11 @@ public class CheckersGui {
     private boolean inChainJump = false;
     private int chainRow = -1;
     private int chainCol = -1;
+    private boolean botInChain = false;
+
+    private String myName = "You";
+    private String opponentName = "Opponent";
+    private int moveNumber = 0;
 
     private StackPane[][] tileCache = new StackPane[BOARD_SIZE][BOARD_SIZE];
 
@@ -92,6 +99,11 @@ public class CheckersGui {
 
     public void setResultCallback(java.util.function.Consumer<Boolean> cb) {
         this.resultCallback = cb;
+    }
+
+    public void setPlayerNames(String myName, String opponentName) {
+        this.myName = (myName != null && !myName.isEmpty()) ? myName : "You";
+        this.opponentName = (opponentName != null && !opponentName.isEmpty()) ? opponentName : "Opponent";
     }
 
     public void setRecord(int wins, int losses) {
@@ -147,8 +159,10 @@ public class CheckersGui {
         myScore = 0;
         opponentScore = 0;
         myTurn = (myPieceColor == 1);
+        moveNumber = 0;
         if (scoreLeft  != null) scoreLeft.setText("0");
         if (scoreRight != null) scoreRight.setText("0");
+        if (moveLogArea != null) moveLogArea.clear();
         refreshBoard();
     }
 
@@ -157,8 +171,12 @@ public class CheckersGui {
         root.getStyleClass().add("board-root");
         root.setLeft(createSidePanel());
         root.setCenter(createBoardStack());
+        if (mode.equals("MultiPlayer")) {
+            root.setRight(createMoveLogPanel());
+        }
 
-        Scene scene = new Scene(root, 1000, 640);
+        double sceneWidth = mode.equals("MultiPlayer") ? 1210 : 1000;
+        Scene scene = new Scene(root, sceneWidth, 640);
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Regular.ttf"), 12);
         Font.loadFont(getClass().getResourceAsStream("/assets/Silkscreen/Silkscreen-Bold.ttf"), 12);
         scene.getStylesheets().add(getClass().getResource("/assets/checkers.css").toExternalForm());
@@ -232,12 +250,52 @@ public class CheckersGui {
         navRow.setAlignment(Pos.CENTER);
         navRow.setPadding(new Insets(6, 0, 6, 0));
 
-        VBox side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
+        VBox side;
+        if (mode.equals("SinglePlayer")) {
+            moveLogLabel = new Label(selectedLanguage.equals("Spanish") ? "REGISTRO" : "MOVE LOG");
+            moveLogLabel.getStyleClass().add("board-label");
+
+            moveLogArea = new TextArea();
+            moveLogArea.setEditable(false);
+            moveLogArea.setWrapText(true);
+            moveLogArea.getStyleClass().add("board-messages");
+            VBox.setVgrow(moveLogArea, Priority.ALWAYS);
+
+            messagesArea = null;
+            chatField    = null;
+            sendBtn      = null;
+            msgLabel     = null;
+
+            side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, moveLogLabel, moveLogArea, navRow);
+        } else {
+            side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
+        }
+
         side.getStyleClass().add("board-side-panel");
         side.setPrefWidth(200);
         side.setPadding(new Insets(10));
         side.setAlignment(Pos.TOP_CENTER);
         return side;
+    }
+
+    private VBox createMoveLogPanel() {
+        boolean sp = selectedLanguage.equals("Spanish");
+
+        moveLogLabel = new Label(sp ? "REGISTRO" : "MOVE LOG");
+        moveLogLabel.getStyleClass().add("board-label");
+
+        moveLogArea = new TextArea();
+        moveLogArea.setEditable(false);
+        moveLogArea.setWrapText(true);
+        moveLogArea.getStyleClass().add("board-messages");
+        VBox.setVgrow(moveLogArea, Priority.ALWAYS);
+
+        VBox panel = new VBox(8, moveLogLabel, moveLogArea);
+        panel.getStyleClass().add("board-side-panel");
+        panel.setPrefWidth(200);
+        panel.setPadding(new Insets(10));
+        panel.setAlignment(Pos.TOP_CENTER);
+        return panel;
     }
 
     private StackPane createBoardStack() {
@@ -479,6 +537,39 @@ public class CheckersGui {
         highlightForcedPieces();
     }
 
+    private void logMove(boolean isMyMove, int fromRow, int fromCol, int toRow, int toCol, boolean wasCapture, boolean justKinged, boolean isChain) {
+        if (moveLogArea == null) return;
+        boolean sp = selectedLanguage.equals("Spanish");
+        String who = isMyMove ? myName : opponentName;
+
+        if (!isChain) moveNumber++;
+
+        char fromColLetter = (char) ('A' + fromCol);
+        char toColLetter = (char) ('A' + toCol);
+        int  fromRowNum = BOARD_SIZE - fromRow;
+        int  toRowNum = BOARD_SIZE - toRow;
+
+        StringBuilder entry = new StringBuilder();
+        if (!isChain) {
+            entry.append("#").append(moveNumber).append(" ");
+        } else {
+            entry.append("   ↪ ");
+        }
+        entry.append(who).append(": ");
+        entry.append(fromColLetter).append(fromRowNum);
+        entry.append(" → ");
+        entry.append(toColLetter).append(toRowNum);
+
+        if (wasCapture) {
+            entry.append(sp ? " captura" : " capture");
+        }
+        if (justKinged) {
+            entry.append(sp ? " rey" : "  king");
+        }
+
+        moveLogArea.appendText(entry.toString() + "\n");
+    }
+
     private void executeMove(int fromRow, int fromCol, int toRow, int toCol, boolean sendToServer) {
         boolean wasCapture = false;
         boolean justKinged = false;
@@ -515,6 +606,8 @@ public class CheckersGui {
 
         selectedRow = -1;
         selectedCol = -1;
+
+        logMove(sendToServer, fromRow, fromCol, toRow, toCol, wasCapture, justKinged, inChainJump);
 
         if (sendToServer && moveCallback != null) {
             moveCallback.accept(Message.gameMove(null, fromRow, fromCol, toRow, toCol));
@@ -718,16 +811,15 @@ public class CheckersGui {
         boolean sp = lang.equals("Spanish");
         titleBtn.setText(titleText());
         scoreLabel.setText(sp ? "PUNTUACIÓN" : "SCORE");
-        msgLabel.setText(sp ? "MENSAJES" : "MESSAGES");
-        sendBtn.setText(sp ? "ENVIAR" : "SEND");
+        if (msgLabel  != null) msgLabel.setText(sp ? "MENSAJES" : "MESSAGES");
+        if (moveLogLabel != null) moveLogLabel.setText(sp ? "REGISTRO" : "MOVE LOG");
+        if (sendBtn   != null) sendBtn.setText(sp ? "ENVIAR" : "SEND");
         homeBtn.setText(sp ? "INICIO" : "HOME");
         langBtn.setText(sp ? "ING" : "LANG");
-        chatField.setPromptText(sp ? "Escribe..." : "Type...");
+        if (chatField != null) chatField.setPromptText(sp ? "Escribe..." : "Type...");
         updateTurnLabel();
-        // Re-render record label with updated language prefix
         if (recordLabel != null) {
             String text = recordLabel.getText();
-            // re-parse current wins/losses from label, e.g. "W2  L1" or "G2  P1"
             try {
                 String[] parts = text.trim().split("\\s+");
                 int w = Integer.parseInt(parts[0].substring(1));
@@ -858,6 +950,9 @@ public class CheckersGui {
             pieces[toRow][toCol] = 4; justKinged = true;
         }
 
+        logMove(false, fromRow, fromCol, toRow, toCol, wasCapture, justKinged, botInChain);
+        botInChain = false;
+
         currentTurn = (currentTurn == 1) ? 2 : 1;
         refreshBoard();
         checkWinCondition();
@@ -874,7 +969,7 @@ public class CheckersGui {
             if (!chain.isEmpty()) {
                 int[] next = chain.get(new Random().nextInt(chain.size()));
                 javafx.animation.PauseTransition pause = new javafx.animation.PauseTransition(javafx.util.Duration.millis(600));
-                pause.setOnFinished(e -> executeBotMove(next[0], next[1], next[2], next[3]));
+                pause.setOnFinished(e -> { botInChain = true; executeBotMove(next[0], next[1], next[2], next[3]); });
                 pause.play();
                 return;
             }
