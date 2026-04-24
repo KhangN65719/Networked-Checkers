@@ -39,6 +39,8 @@ public class GuiClient extends Application {
 
     CheckersGui activeBoard = null;
     int myPieceColor = 1;
+    int sessionWins = 0;
+    int sessionLosses = 0;
 
     public static void main(String[] args) { launch(args); }
 
@@ -142,8 +144,12 @@ public class GuiClient extends Application {
 
         if (gameMode.equals("SinglePlayer")) {
             activeBoard.setMoveCallback(null);
-            activeBoard.setGameOverCallback(null);
             activeBoard.setBoardChatCallback(null);
+            activeBoard.setGameOverCallback(null);
+            activeBoard.setResultCallback(won -> {
+                if (won) sessionWins++; else sessionLosses++;
+                activeBoard.setRecord(sessionWins, sessionLosses);
+            });
         } else {
             activeBoard.setMoveCallback(msg ->
                     clientConnection.send(Message.gameMove(myUsername, msg.fromRow, msg.fromCol, msg.toRow, msg.toCol))
@@ -211,6 +217,8 @@ public class GuiClient extends Application {
                     boolean won = "WIN".equals(msg.content);
                     boolean opponentLeft = won && opponentUsername == null;
                     opponentUsername = null;
+                    if (won) sessionWins++; else sessionLosses++;
+                    activeBoard.setRecord(sessionWins, sessionLosses);
                     activeBoard.showGameOver(won, opponentLeft);
                 }
                 break;

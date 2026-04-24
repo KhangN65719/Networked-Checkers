@@ -23,8 +23,9 @@ public class CheckersGui {
     private static final Color PIECE_DARK = Color.web("#444444");
     private static final Color HIGHLIGHT = Color.web("#FFD700");
     private static final Color VALID_MOVE = Color.web("#90EE90");
+    private static final Color FORCED_CAPTURE = Color.web("#FF2222");
 
-    private Label scoreLeft, scoreRight, scoreLabel, msgLabel, turnLabel;
+    private Label scoreLeft, scoreRight, scoreLabel, msgLabel, turnLabel, recordLabel;
     private TextArea messagesArea;
     private TextField chatField;
     private Button sendBtn, homeBtn, langBtn, titleBtn;
@@ -58,6 +59,7 @@ public class CheckersGui {
     private Consumer<Message> moveCallback;
     private Consumer<String> boardChatCallback;
     private Runnable gameOverCallback;
+    private java.util.function.Consumer<Boolean> resultCallback;
 
     private boolean inChainJump = false;
     private int chainRow = -1;
@@ -88,10 +90,24 @@ public class CheckersGui {
         this.gameOverCallback = cb;
     }
 
+    public void setResultCallback(java.util.function.Consumer<Boolean> cb) {
+        this.resultCallback = cb;
+    }
+
+    public void setRecord(int wins, int losses) {
+        if (recordLabel != null) {
+            boolean sp = selectedLanguage.equals("Spanish");
+            String wLabel = sp ? "G" : "W";
+            String lLabel = sp ? "P" : "L";
+            recordLabel.setText(wLabel + wins + "  " + lLabel + losses);
+        }
+    }
+
     public void setMyPieceColor(int color) {
         this.myPieceColor = color;
         this.myTurn = (color == 1);
         updateTurnLabel();
+        refreshBoard();
     }
 
     private String titleText() {
@@ -169,6 +185,10 @@ public class CheckersGui {
         scoreBox.getStyleClass().add("score-panel");
         scoreBox.setAlignment(Pos.CENTER);
 
+        recordLabel = new Label("W0  L0");
+        recordLabel.getStyleClass().add("board-label");
+        recordLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #aaddaa;");
+
         turnLabel = new Label();
         turnLabel.getStyleClass().add("board-label");
         updateTurnLabel();
@@ -212,7 +232,7 @@ public class CheckersGui {
         navRow.setAlignment(Pos.CENTER);
         navRow.setPadding(new Insets(6, 0, 6, 0));
 
-        VBox side = new VBox(8, titleBtn, scoreBox, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
+        VBox side = new VBox(8, titleBtn, scoreBox, recordLabel, turnLabel, msgLabel, messagesArea, chatField, sendBtn, navRow);
         side.getStyleClass().add("board-side-panel");
         side.setPrefWidth(200);
         side.setPadding(new Insets(10));
@@ -298,8 +318,11 @@ public class CheckersGui {
             return;
         }
 
+        boolean captureForced = anyMyCaptureExists();
+
         if (selectedRow == -1) {
             if (isMyPiece(row, col)) {
+                if (captureForced && !pieceHasCapture(row, col)) return;
                 selectedRow = row;
                 selectedCol = col;
                 highlightValidMoves(row, col);
@@ -311,10 +334,14 @@ public class CheckersGui {
                 selectedRow = -1;
                 selectedCol = -1;
             }
-            else if (isValidMove(selectedRow, selectedCol, row, col) || isValidCapture(selectedRow, selectedCol, row, col)) {
+            else if (isValidCapture(selectedRow, selectedCol, row, col)) {
+                executeMove(selectedRow, selectedCol, row, col, true);
+            }
+            else if (!captureForced && isValidMove(selectedRow, selectedCol, row, col)) {
                 executeMove(selectedRow, selectedCol, row, col, true);
             }
             else if (isMyPiece(row, col)) {
+                if (captureForced && !pieceHasCapture(row, col)) return;
                 clearHighlight();
                 selectedRow = row;
                 selectedCol = col;
@@ -350,14 +377,40 @@ public class CheckersGui {
 
     private void highlightValidMoves(int row, int col) {
         clearHighlight();
+        boolean captureForced = anyMyCaptureExists();
         for (int r = 0; r < BOARD_SIZE; r++) {
             for (int c = 0; c < BOARD_SIZE; c++) {
-                if (isValidMove(row, col, r, c) || isValidCapture(row, col, r, c)) {
+                if (isValidCapture(row, col, r, c)) {
+                    colorTile(r, c, VALID_MOVE);
+                } else if (!captureForced && isValidMove(row, col, r, c)) {
                     colorTile(r, c, VALID_MOVE);
                 }
             }
         }
         colorTile(row, col, HIGHLIGHT);
+    }
+
+    private boolean anyMyCaptureExists() {
+        int[] dRow = {-2, -2, 2, 2};
+        int[] dCol = {-2,  2, -2, 2};
+        for (int r = 0; r < BOARD_SIZE; r++) {
+            for (int c = 0; c < BOARD_SIZE; c++) {
+                if (!isMyPiece(r, c)) continue;
+                for (int i = 0; i < 4; i++) {
+                    if (isValidCapture(r, c, r + dRow[i], c + dCol[i])) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean pieceHasCapture(int row, int col) {
+        int[] dRow = {-2, -2, 2, 2};
+        int[] dCol = {-2,  2, -2, 2};
+        for (int i = 0; i < 4; i++) {
+            if (isValidCapture(row, col, row + dRow[i], col + dCol[i])) return true;
+        }
+        return false;
     }
 
     private void clearHighlight() {
@@ -366,6 +419,7 @@ public class CheckersGui {
                 refreshTile(row, col);
             }
         }
+        highlightForcedPieces();
     }
 
     private void colorTile(int row, int col, Color color) {
@@ -399,6 +453,18 @@ public class CheckersGui {
         }
     }
 
+    /** Highlights the tile of every piece that must capture this turn. */
+    private void highlightForcedPieces() {
+        if (!myTurn) return;
+        for (int r = 0; r < BOARD_SIZE; r++) {
+            for (int c = 0; c < BOARD_SIZE; c++) {
+                if (isMyPiece(r, c) && pieceHasCapture(r, c)) {
+                    colorTile(r, c, FORCED_CAPTURE);
+                }
+            }
+        }
+    }
+
     private StackPane getTile(int row, int col) {
         if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) return null;
         return tileCache[row][col];
@@ -410,6 +476,7 @@ public class CheckersGui {
                 refreshTile(row, col);
             }
         }
+        highlightForcedPieces();
     }
 
     private void executeMove(int fromRow, int fromCol, int toRow, int toCol, boolean sendToServer) {
@@ -571,6 +638,7 @@ public class CheckersGui {
         if (lightCount == 0 || darkCount == 0) {
             boolean myPieceWon = (myPieceColor == 1 && darkCount == 0) || (myPieceColor == 2 && lightCount == 0);
             if (gameOverCallback != null) gameOverCallback.run();
+            if (resultCallback != null) resultCallback.accept(myPieceWon);
             showGameOver(myPieceWon);
         }
     }
@@ -656,6 +724,17 @@ public class CheckersGui {
         langBtn.setText(sp ? "ING" : "LANG");
         chatField.setPromptText(sp ? "Escribe..." : "Type...");
         updateTurnLabel();
+        // Re-render record label with updated language prefix
+        if (recordLabel != null) {
+            String text = recordLabel.getText();
+            // re-parse current wins/losses from label, e.g. "W2  L1" or "G2  P1"
+            try {
+                String[] parts = text.trim().split("\\s+");
+                int w = Integer.parseInt(parts[0].substring(1));
+                int l = Integer.parseInt(parts[1].substring(1));
+                recordLabel.setText((sp ? "G" : "W") + w + "  " + (sp ? "P" : "L") + l);
+            } catch (Exception ignored) {}
+        }
         if (overlayBox != null && overlayBox.isVisible()) {
             String title = overlayTitle.getText();
             if (title.contains("WAITING") || title.contains("ESPERANDO")) {
@@ -803,6 +882,7 @@ public class CheckersGui {
 
         myTurn = true;
         updateTurnLabel();
+        refreshBoard();
     }
 
     private boolean canCaptureBotFrom(int row, int col) {
