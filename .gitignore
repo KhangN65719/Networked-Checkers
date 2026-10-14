@@ -3,3 +3,7 @@
 .settings/
 .classpath
 .project
+
+# Generated Java build output
+target/
+*.class
